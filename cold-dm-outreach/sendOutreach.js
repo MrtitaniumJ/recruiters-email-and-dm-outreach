@@ -27,18 +27,6 @@ function parseBoolean(value, fallback) {
     return fallback;
 }
 
-function readJsonFile(filePath, fallback) {
-    if (!fs.existsSync(filePath)) {
-        return fallback;
-    }
-    try {
-        const raw = fs.readFileSync(filePath, 'utf8').trim();
-        return raw ? JSON.parse(raw) : fallback;
-    } catch (error) {
-        return fallback;
-    }
-}
-
 function writeJsonFile(filePath, value) {
     fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
 }
