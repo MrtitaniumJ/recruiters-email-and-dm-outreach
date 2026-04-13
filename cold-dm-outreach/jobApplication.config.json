@@ -1,0 +1,96 @@
+{
+  "automation": {
+    "maxJobsPerRun": 12,
+    "onlyApplyToNewJobs": true,
+    "autoApplyEnabled": false,
+    "applicationMode": "guarded_auto_apply",
+    "manualCaptchaHandoff": false,
+    "captchaWaitMs": 180000,
+    "supportedAtsForAutoApply": [
+      "greenhouse",
+      "lever",
+      "smartrecruiters"
+    ],
+    "navigationTimeoutMs": 30000,
+    "careersPageWaitMs": 5000,
+    "headless": false
+  },
+  "matching": {
+    "keywords": [
+      "software engineer",
+      "software developer",
+      "frontend",
+      "frontend engineer",
+      "backend",
+      "backend engineer",
+      "full stack",
+      "full-stack",
+      "react",
+      "next.js",
+      "node",
+      "node.js",
+      "typescript"
+    ],
+    "negativeKeywords": [
+      "intern",
+      "internship",
+      "principal",
+      "staff",
+      "senior staff",
+      "sales",
+      "marketing",
+      "designer"
+    ],
+    "targetLocations": [
+      "india",
+      "remote",
+      "hybrid",
+      "bangalore",
+      "bengaluru",
+      "gurgaon",
+      "noida",
+      "pune",
+      "hyderabad"
+    ]
+  },
+  "applicant": {
+    "fullName": "Jatin Sharma",
+    "email": "",
+    "phone": "",
+    "currentLocation": "India",
+    "linkedinUrl": "",
+    "githubUrl": "",
+    "portfolioUrl": "",
+    "websiteUrl": "",
+    "yearsOfExperience": "",
+    "workAuthorization": "",
+    "sponsorshipRequired": "No",
+    "resumePath": "../Jatin_Sharma_SDE_FS.pdf"
+  },
+  "digest": {
+    "writeMarkdown": true,
+    "writeJson": true,
+    "createNotionPage": true
+  },
+  "companies": [
+    {
+      "company": "Autodesk",
+      "careersUrl": "https://www.autodesk.com/careers"
+    },
+    {
+      "company": "Zscaler",
+      "careersUrl": "https://www.zscaler.com/careers/engineering",
+      "jobsUrl": "https://www.zscaler.com/careers/search?departments=Engineering&departments=Cloud%20Ops&departments=Emerging%20Tech&departments=Global%20Customer%20Services&departments=Customer%20Experience&departments=Customer%20Success"
+    },
+    {
+      "company": "EY",
+      "careersUrl": "https://www.ey.com/en_in/careers/technology",
+      "jobsUrl": "https://careers.ey.com/ey"
+    },
+    {
+      "company": "Nielsen",
+      "careersUrl": "https://www.nielsen.com/th/careers/careers/",
+      "jobsUrl": "https://careers.smartrecruiters.com/TheNielsenCompany"
+    }
+  ]
+}

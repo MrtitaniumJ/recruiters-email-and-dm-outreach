@@ -1,0 +1,76 @@
+{
+  "jobMatcher": {
+    "enabled": true,
+    "requestTimeoutMs": 15000,
+    "defaultKeywords": [
+      "software engineer",
+      "software developer",
+      "frontend",
+      "backend",
+      "full stack",
+      "react",
+      "next.js",
+      "node",
+      "typescript"
+    ],
+    "companies": [
+      {
+        "company": "Autodesk",
+        "careersUrl": "https://www.autodesk.com/careers",
+        "keywords": [
+          "software engineer",
+          "frontend",
+          "full stack",
+          "react",
+          "typescript"
+        ]
+      },
+      {
+        "company": "Zscaler",
+        "careersUrl": "https://www.zscaler.com/careers/engineering",
+        "keywords": [
+          "software engineer",
+          "engineering",
+          "cloud",
+          "react",
+          "typescript",
+          "node"
+        ]
+      },
+      {
+        "company": "EY",
+        "careersUrl": "https://www.ey.com/en_in/careers/technology",
+        "keywords": [
+          "technology",
+          "software",
+          "engineering",
+          "developer",
+          "data",
+          "ai"
+        ]
+      },
+      {
+        "company": "Nielsen",
+        "careersUrl": "https://www.nielsen.com/th/careers/careers/",
+        "keywords": [
+          "software engineer",
+          "technology",
+          "developer",
+          "data"
+        ]
+      }
+    ]
+  },
+  "digest": {
+    "writeMarkdown": true,
+    "writeJson": true,
+    "createNotionPage": true
+  },
+  "templates": {
+    "recruiter": "Hi {name},\n\nI noticed your recruiting work at {company}. I'm a Full Stack Developer with experience in React, Next.js, Node.js, TypeScript, and PostgreSQL, and I'm currently exploring software engineering opportunities.\n\n{company_signal}I'd love to share my background and see if there are any roles that could be a fit.\n\nBest,\nJatin",
+    "talent_acquisition": "Hi {name},\n\nI came across your talent acquisition background at {company}. I'm a Full Stack Developer with hands-on experience across React, Next.js, Node.js, TypeScript, and PostgreSQL, and I'm actively looking for strong SDE opportunities.\n\n{company_signal}If your team is hiring for engineering roles, I'd really value the chance to connect.\n\nBest,\nJatin",
+    "hr": "Hi {name},\n\nI hope you're doing well. I saw that you're part of the HR / people team at {company}. I'm a Full Stack Developer with experience building production applications using React, Next.js, Node.js, TypeScript, and PostgreSQL.\n\n{company_signal}If there are any software engineering openings, I'd be grateful to be considered.\n\nBest,\nJatin",
+    "hiring_manager": "Hi {name},\n\nI noticed your role at {company} and wanted to reach out directly. I'm a Full Stack Developer with production experience across React, Next.js, Node.js, TypeScript, and PostgreSQL.\n\n{company_signal}If your team is hiring, I'd love the chance to introduce myself.\n\nBest,\nJatin",
+    "generic": "Hi {name},\n\nI'm Jatin, a Full Stack Developer currently exploring software engineering opportunities. I came across your profile at {company} and wanted to reach out.\n\n{company_signal}If there are any relevant openings or someone on your team I should speak with, I'd really appreciate it.\n\nBest,\nJatin"
+  }
+}

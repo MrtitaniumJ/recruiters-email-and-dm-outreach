@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Secrets and local env (never commit)
+.env
+.env.*
+!.env.example
+cold-dm-outreach/.env
+cold-dm-outreach/.env.*
+!cold-dm-outreach/.env.example
+
+# Notion / integration ids (machine-specific)
+db_id.txt
+cold-dm-outreach/linkedin_notion_db_id.txt
+cold-dm-outreach/job_notion_db_id.txt
+
+# Browser profile & automation state (LinkedIn session, cookies, large binaries)
+cold-dm-outreach/linkedin_user_data/
+
+# Runtime / personal tracking data
+sessions.json
+cold-dm-outreach/outreach_run_log.json
+cold-dm-outreach/sent_logs.json
+cold-dm-outreach/linkedin_sync_state.json
+cold-dm-outreach/job_application_state.json
+cold-dm-outreach/job_application_digest.json
+cold-dm-outreach/job_application_digest.md
+cold-dm-outreach/latest_run_digest.json
+cold-dm-outreach/latest_run_digest.md
+
+# Optional generated profile (keep resumeProfile.seed.json in repo)
+cold-dm-outreach/resumeProfile.json
+
+# Tooling / editor
+.claude/
+.cursor/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Personal assets & spreadsheets (not for public repo)
+*.xlsx
+*.pdf
