@@ -174,5 +174,7 @@ function buildResumeProfile({ resumePath, fallbackLocations = [] }) {
 }
 
 module.exports = {
-    buildResumeProfile
+    buildResumeProfile,
+    mergeUniqueValues,
+    normalizeText
 };
