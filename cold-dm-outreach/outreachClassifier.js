@@ -80,6 +80,10 @@ const STRONG_NEGATIVE_PATTERNS = [
     /\bfresher\b/i
 ];
 
+// Pre-combine regex arrays to avoid allocating new arrays on every call to computeScore.
+const STRONG_PATTERNS = [...RECRUITER_PATTERNS, ...TA_PATTERNS, ...HR_PATTERNS, ...HIRING_MANAGER_PATTERNS];
+const SOFT_PATTERNS = [...ENGINEER_PATTERNS, ...MANAGER_PATTERNS];
+
 const COMPANY_TOKEN_CLEANUP = /[•·|,()\[\]]/g;
 
 function textOf(connection) {
@@ -153,8 +157,8 @@ function computeRelevance(contactType) {
 
 function computeScore(connection) {
     const text = textOf(connection);
-    const strong = countMatches(text, [...RECRUITER_PATTERNS, ...TA_PATTERNS, ...HR_PATTERNS, ...HIRING_MANAGER_PATTERNS]);
-    const soft = countMatches(text, [...ENGINEER_PATTERNS, ...MANAGER_PATTERNS]);
+    const strong = countMatches(text, STRONG_PATTERNS);
+    const soft = countMatches(text, SOFT_PATTERNS);
     const negative = countMatches(text, STRONG_NEGATIVE_PATTERNS);
     return (strong * 3) + soft - (negative * 2);
 }
