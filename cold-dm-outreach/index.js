@@ -509,7 +509,7 @@ async function clearComposer(page, selector) {
         }
 
         if (element.isContentEditable) {
-            element.innerHTML = '';
+            element.textContent = '';
             element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward', data: null }));
             return;
         }
