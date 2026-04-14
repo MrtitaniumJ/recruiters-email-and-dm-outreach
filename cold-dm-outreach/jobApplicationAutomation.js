@@ -953,8 +953,9 @@ async function fillSupportedFields(page, config) {
             const tagName = element.tagName.toLowerCase();
             if (tagName === 'select') {
                 const options = Array.from(element.options || []);
-                const candidate = options.find((option) => normalizeTextLocal(option.textContent).toLowerCase() === normalizeTextLocal(value).toLowerCase()) ||
-                    options.find((option) => normalizeTextLocal(option.textContent).toLowerCase().includes(normalizeTextLocal(value).toLowerCase()));
+                const normalizedValue = normalizeTextLocal(value).toLowerCase();
+                const candidate = options.find((option) => normalizeTextLocal(option.textContent).toLowerCase() === normalizedValue) ||
+                    options.find((option) => normalizeTextLocal(option.textContent).toLowerCase().includes(normalizedValue));
 
                 if (!candidate) {
                     return false;
