@@ -90,12 +90,26 @@ function textOf(connection) {
     return `${connection.headline || ''} ${connection.additionalDetails || ''}`.replace(/\s+/g, ' ').trim();
 }
 
+// ⚡ Bolt: Using standard for loops instead of higher-order array methods (.some, .reduce)
+// in hot loops (frequently called during classification) to improve CPU efficiency
+// and avoid anonymous function allocation overhead.
 function anyMatch(text, patterns) {
-    return patterns.some((pattern) => pattern.test(text));
+    for (let i = 0; i < patterns.length; i++) {
+        if (patterns[i].test(text)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function countMatches(text, patterns) {
-    return patterns.reduce((accumulator, pattern) => accumulator + (pattern.test(text) ? 1 : 0), 0);
+    let count = 0;
+    for (let i = 0; i < patterns.length; i++) {
+        if (patterns[i].test(text)) {
+            count++;
+        }
+    }
+    return count;
 }
 
 function classifyContactType(connection) {
