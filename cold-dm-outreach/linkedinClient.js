@@ -14,8 +14,8 @@ const COMPOSER_SELECTORS = [
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const randomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-async function launchBrowser({ headless = false } = {}) {
-    return puppeteer.launch({
+async function launchBrowser({ headless = false, protocolTimeoutMs } = {}) {
+    const launchOptions = {
         headless: headless ? 'new' : false,
         args: [
             '--disable-extensions',
@@ -24,7 +24,16 @@ async function launchBrowser({ headless = false } = {}) {
             '--disable-blink-features=AutomationControlled',
             '--no-first-run'
         ]
-    });
+    };
+
+    if (protocolTimeoutMs !== undefined && protocolTimeoutMs !== null) {
+        const parsed = Number(protocolTimeoutMs);
+        if (parsed === 0 || Number.isFinite(parsed)) {
+            launchOptions.protocolTimeout = parsed;
+        }
+    }
+
+    return puppeteer.launch(launchOptions);
 }
 
 async function ensureLinkedInSession(page, liAt, { navigationTimeoutMs = 30000, targetUrl = CONNECTIONS_URL } = {}) {
@@ -71,8 +80,8 @@ async function extractTotalConnectionCount(page) {
     });
 }
 
-async function extractVisibleConnections(page) {
-    return page.evaluate((linkedinBaseUrl) => {
+async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWindow = 0 } = {}) {
+    return page.evaluate(({ linkedinBaseUrl, maxComposeAnchors: maxAnchors, tailWindow: tailLimit }) => {
         function getCardDataFromLink(link) {
             let node = link;
             let bestMatch = null;
@@ -124,7 +133,24 @@ async function extractVisibleConnections(page) {
         const connections = [];
         const seenKeys = new Set();
 
-        document.querySelectorAll('a[href*="/messaging/compose/"]').forEach((messageLink) => {
+        const allComposeLinks = Array.from(document.querySelectorAll('a[href*="/messaging/compose/"]'));
+        let messageLinks = allComposeLinks;
+
+        // Tail-only window keeps the per-cycle DOM walk bounded even when the
+        // mounted connection list grows into the thousands. New cards always
+        // appear at the bottom as we scroll, so scanning the tail is enough.
+        if (tailLimit > 0 && allComposeLinks.length > tailLimit) {
+            messageLinks = allComposeLinks.slice(-tailLimit);
+        } else if (maxAnchors > 0 && allComposeLinks.length > maxAnchors) {
+            const headCount = Math.ceil(maxAnchors / 2);
+            const tailCount = maxAnchors - headCount;
+            const picked = new Set();
+            allComposeLinks.slice(0, headCount).forEach((link) => picked.add(link));
+            allComposeLinks.slice(-tailCount).forEach((link) => picked.add(link));
+            messageLinks = Array.from(picked);
+        }
+
+        messageLinks.forEach((messageLink) => {
             const card = getCardDataFromLink(messageLink);
             if (!card) {
                 return;
@@ -162,7 +188,11 @@ async function extractVisibleConnections(page) {
         });
 
         return connections;
-    }, LINKEDIN_BASE_URL);
+    }, {
+        linkedinBaseUrl: LINKEDIN_BASE_URL,
+        maxComposeAnchors: maxComposeAnchors || 0,
+        tailWindow: tailWindow || 0
+    });
 }
 
 async function scrollOnce(page) {
@@ -202,27 +232,120 @@ async function collectAllConnections(page, {
     maxScrollSteps = 800,
     stagnationLimit = 12,
     scrollDelayMs = 1400,
-    onProgress = null
+    onProgress = null,
+    mode = 'full',
+    existingNotionKeys = null,
+    latestHeadSteps = 0,
+    scrollsPerExtract = 1,
+    maxComposeAnchors = 0,
+    extractTailWindow = 0,
+    targetNewToNotion = 0,
+    flushBatchSize = 0,
+    onBatchFlush = null
 } = {}) {
     const byKey = new Map();
     let stagnant = 0;
+    let unknownStagnant = 0;
+    let extractCycle = 0;
+    let totalScrolls = 0;
+    let stopReason = 'max_scroll_steps';
+    let totalNewToNotionAdded = 0;
+    const notionKeys = existingNotionKeys instanceof Set ? existingNotionKeys : null;
+    const incremental = mode === 'latest' && notionKeys;
+    const scrollBatch = Math.max(1, Number(scrollsPerExtract) || 1);
+    const headFloor = Math.max(0, Number(latestHeadSteps) || 0);
+    const extractOpts = {
+        maxComposeAnchors: Number(maxComposeAnchors) || 0,
+        tailWindow: Math.max(0, Number(extractTailWindow) || 0)
+    };
+    const flushThreshold = Math.max(0, Number(flushBatchSize) || 0);
+    const targetNewGoal = Math.max(0, Number(targetNewToNotion) || 0);
+    let pendingFlush = [];
 
-    for (let step = 0; step < maxScrollSteps; step += 1) {
-        const visible = await extractVisibleConnections(page);
+    const flushNow = async (reason) => {
+        if (typeof onBatchFlush !== 'function' || pendingFlush.length === 0) {
+            return;
+        }
+        const batch = pendingFlush;
+        pendingFlush = [];
+        try {
+            await onBatchFlush(batch, { reason });
+        } catch (flushError) {
+            // Re-queue so we don't silently lose rows, then rethrow.
+            pendingFlush = batch.concat(pendingFlush);
+            throw flushError;
+        }
+    };
+
+    while (extractCycle < maxScrollSteps) {
+        extractCycle += 1;
+        const visible = await extractVisibleConnections(page, extractOpts);
         let newCount = 0;
+        let newToNotion = 0;
+
         for (const connection of visible) {
             const key = connection.profileUrl || connection.messageUrl || connection.fullName;
             if (!byKey.has(key)) {
                 byKey.set(key, connection);
                 newCount += 1;
+                if (!notionKeys || !notionKeys.has(key)) {
+                    newToNotion += 1;
+                    pendingFlush.push(connection);
+                }
+            }
+        }
+
+        totalNewToNotionAdded += newToNotion;
+
+        if (incremental && extractCycle >= headFloor) {
+            if (newToNotion === 0) {
+                unknownStagnant += 1;
+            } else {
+                unknownStagnant = 0;
             }
         }
 
         if (typeof onProgress === 'function') {
-            onProgress({ step: step + 1, maxScrollSteps, total: byKey.size, newCount, stagnant });
+            onProgress({
+                step: extractCycle,
+                maxScrollSteps,
+                total: byKey.size,
+                newCount,
+                stagnant,
+                unknownStagnant,
+                newToNotion,
+                totalScrolls
+            });
+        }
+
+        if (flushThreshold > 0 && pendingFlush.length >= flushThreshold) {
+            await flushNow('batch_size');
         }
 
         if (targetTotal && byKey.size >= targetTotal) {
+            await flushNow('target_total_reached');
+            stopReason = 'target_total_reached';
+            break;
+        }
+
+        if (targetNewGoal > 0 && totalNewToNotionAdded >= targetNewGoal) {
+            await flushNow('target_new_to_notion_reached');
+            stopReason = 'target_new_to_notion_reached';
+            break;
+        }
+
+        // Only honor the "known head streak" stop when we do NOT have a definite
+        // Notion gap to close. If expectedGap > 0, the missing profiles can live
+        // anywhere below the already-synced head — we must keep scrolling until
+        // either the gap is filled or the list is genuinely exhausted.
+        if (
+            incremental &&
+            targetNewGoal === 0 &&
+            extractCycle >= headFloor &&
+            unknownStagnant >= stagnationLimit
+        ) {
+            await flushNow('latest_unknown_stagnation');
+            stopReason = 'latest_unknown_stagnation';
             break;
         }
 
@@ -230,17 +353,31 @@ async function collectAllConnections(page, {
             stagnant += 1;
             await clickShowMoreButton(page).catch(() => {});
             if (stagnant >= stagnationLimit) {
+                await flushNow('global_stagnation');
+                stopReason = 'global_stagnation';
                 break;
             }
         } else {
             stagnant = 0;
         }
 
-        await scrollOnce(page);
+        for (let s = 0; s < scrollBatch; s += 1) {
+            await scrollOnce(page);
+            totalScrolls += 1;
+        }
+
         await sleep(scrollDelayMs);
     }
 
-    return Array.from(byKey.values());
+    await flushNow(stopReason);
+
+    return {
+        connections: Array.from(byKey.values()),
+        stopReason,
+        extractCycles: extractCycle,
+        totalScrolls,
+        totalNewToNotionAdded
+    };
 }
 
 async function waitForAnySelector(page, selectors, timeoutMs) {
