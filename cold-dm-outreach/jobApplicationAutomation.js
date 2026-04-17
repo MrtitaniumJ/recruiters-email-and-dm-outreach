@@ -325,6 +325,63 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoisting static patterns outside of per-node functions to avoid
+        // repeated memory allocation and garbage collection overhead in the hot loop.
+        const rolePatterns = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+        const genericTitlePatterns = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+        const genericUrlFragments = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
+        const loweredHints = hintFragments.map(fragment => String(fragment).toLowerCase());
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -370,73 +427,40 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
-            if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
-                return true;
+            // ⚡ Bolt: Replaced .some() with for loops to avoid anonymous function allocation overhead.
+            for (let i = 0; i < rolePatterns.length; i++) {
+                if (rolePatterns[i].test(normalizedTitle)) {
+                    return true;
+                }
             }
 
-            return normalizedTitle.split(' ').length >= 2 &&
-                rolePatterns.some((pattern) => pattern.test(normalizedContext));
+            if (normalizedTitle.split(' ').length >= 2) {
+                for (let i = 0; i < rolePatterns.length; i++) {
+                    if (rolePatterns[i].test(normalizedContext)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
-            return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
-                genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
+            // ⚡ Bolt: Replaced .some() with for loops to avoid anonymous function allocation overhead.
+            for (let i = 0; i < genericTitlePatterns.length; i++) {
+                if (genericTitlePatterns[i].test(normalizedTitle)) {
+                    return true;
+                }
+            }
+            for (let i = 0; i < genericUrlFragments.length; i++) {
+                if (normalizedUrl.includes(genericUrlFragments[i])) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         function pushJob(jobs, seenKeys, job) {
@@ -502,7 +526,15 @@ async function discoverJobsForCompany(page, companyConfig, config) {
             const contextText = getContextText(anchor);
             const title = anchorText || normalizeTextLocal((contextText || '').split('\n')[0]);
             const haystack = `${href} ${anchorText} ${contextText}`.toLowerCase();
-            const looksLikeJobLink = hintFragments.some((fragment) => haystack.includes(String(fragment).toLowerCase()));
+
+            // ⚡ Bolt: Replaced .some() with a for loop and using pre-computed lowercase fragments
+            let looksLikeJobLink = false;
+            for (let i = 0; i < loweredHints.length; i++) {
+                if (haystack.includes(loweredHints[i])) {
+                    looksLikeJobLink = true;
+                    break;
+                }
+            }
 
             if (!looksLikeJobLink) {
                 return;
