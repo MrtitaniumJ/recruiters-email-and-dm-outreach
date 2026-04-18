@@ -82,6 +82,12 @@ async function extractTotalConnectionCount(page) {
 
 async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWindow = 0 } = {}) {
     return page.evaluate(({ linkedinBaseUrl, maxComposeAnchors: maxAnchors, tailWindow: tailLimit }) => {
+        // ⚡ Bolt: Hoisting regexes out of the per-node processing loop
+        // to avoid repeated regex compilation and anonymous allocation overhead
+        // during Puppeteer's page.evaluate DOM traversal.
+        const MESSAGE_REGEX = /^message$/i;
+        const CONNECTED_REGEX = /^connected on /i;
+
         function getCardDataFromLink(link) {
             let node = link;
             let bestMatch = null;
@@ -101,12 +107,12 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                     continue;
                 }
 
-                const messageLineCount = lines.filter((line) => /^message$/i.test(line)).length;
+                const messageLineCount = lines.filter((line) => MESSAGE_REGEX.test(line)).length;
                 if (messageLineCount !== 1) {
                     continue;
                 }
 
-                const connectedLineCount = lines.filter((line) => /^connected on /i.test(line)).length;
+                const connectedLineCount = lines.filter((line) => CONNECTED_REGEX.test(line)).length;
                 if (connectedLineCount > 1) {
                     continue;
                 }
@@ -163,8 +169,8 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
 
             const detailLines = card.lines
                 .slice(1)
-                .filter((line) => !/^connected on /i.test(line) && !/^message$/i.test(line));
-            const connectedOnRaw = card.lines.find((line) => /^connected on /i.test(line)) || '';
+                .filter((line) => !CONNECTED_REGEX.test(line) && !MESSAGE_REGEX.test(line));
+            const connectedOnRaw = card.lines.find((line) => CONNECTED_REGEX.test(line)) || '';
             const headline = detailLines[0] || '';
             const additionalDetails = detailLines.slice(1).join(' | ');
             const profileUrl = card.profileUrl.startsWith('http') ? card.profileUrl : `${linkedinBaseUrl}${card.profileUrl}`;
