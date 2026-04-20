@@ -376,15 +376,32 @@ function parseConnectedOnDate(connectedOnRaw) {
 
 function scoreConnection(connection) {
     const searchableText = `${connection.headline} ${connection.additionalDetails}`.trim();
-    const strongMatches = RELEVANCE_RULES.strongPatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
-    const softMatches = RELEVANCE_RULES.softPatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
-    const negativeMatches = RELEVANCE_RULES.negativePatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
+
+    // ⚡ Bolt: Performance optimization
+    // Avoiding higher-order array methods (.filter, .map) in this hot loop which is called
+    // for every connection. Using standard for-loops reduces anonymous function allocations
+    // and intermediate array creation, significantly reducing CPU cycles and garbage collection overhead.
+    const strongMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.strongPatterns.length; i++) {
+        if (RELEVANCE_RULES.strongPatterns[i].test(searchableText)) {
+            strongMatches.push(RELEVANCE_RULES.strongPatterns[i].source);
+        }
+    }
+
+    const softMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.softPatterns.length; i++) {
+        if (RELEVANCE_RULES.softPatterns[i].test(searchableText)) {
+            softMatches.push(RELEVANCE_RULES.softPatterns[i].source);
+        }
+    }
+
+    const negativeMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.negativePatterns.length; i++) {
+        if (RELEVANCE_RULES.negativePatterns[i].test(searchableText)) {
+            negativeMatches.push(RELEVANCE_RULES.negativePatterns[i].source);
+        }
+    }
+
     const matchScore = (strongMatches.length * 2) + softMatches.length - negativeMatches.length;
 
     let relevanceLabel = 'Not Relevant';
