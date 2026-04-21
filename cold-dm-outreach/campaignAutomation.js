@@ -197,7 +197,8 @@ async function runJobMatcher(connections, config) {
 
     console.log(`🔎 Job matcher: checking ${companiesToCheck.size} configured company career pages...`);
 
-    for (const [companyKey, companyConfig] of companiesToCheck.entries()) {
+    // ⚡ Bolt: Execute career page checks concurrently to minimize total network latency.
+    await Promise.all(Array.from(companiesToCheck.entries()).map(async ([companyKey, companyConfig]) => {
         const keywords = Array.isArray(companyConfig.keywords) && companyConfig.keywords.length > 0
             ? companyConfig.keywords
             : config.jobMatcher.defaultKeywords;
@@ -232,7 +233,7 @@ async function runJobMatcher(connections, config) {
 
             console.log(`   • ${companyConfig.company}: job check failed`);
         }
-    }
+    }));
 
     return results;
 }
