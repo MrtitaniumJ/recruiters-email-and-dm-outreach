@@ -82,6 +82,13 @@ async function extractTotalConnectionCount(page) {
 
 async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWindow = 0 } = {}) {
     return page.evaluate(({ linkedinBaseUrl, maxComposeAnchors: maxAnchors, tailWindow: tailLimit }) => {
+        // ⚡ Bolt: Hoist static regexes to the outermost scope of the evaluate block
+        // to avoid repeated regex compilation and garbage collection in hot loops
+        // (DOM traversal for every message link).
+        const MSG_REGEX = /^message$/i;
+        const CONNECTED_REGEX = /^connected on /i;
+        const WHITESPACE_REGEX = /\s+/g;
+
         function getCardDataFromLink(link) {
             let node = link;
             let bestMatch = null;
@@ -101,12 +108,12 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                     continue;
                 }
 
-                const messageLineCount = lines.filter((line) => /^message$/i.test(line)).length;
+                const messageLineCount = lines.filter((line) => MSG_REGEX.test(line)).length;
                 if (messageLineCount !== 1) {
                     continue;
                 }
 
-                const connectedLineCount = lines.filter((line) => /^connected on /i.test(line)).length;
+                const connectedLineCount = lines.filter((line) => CONNECTED_REGEX.test(line)).length;
                 if (connectedLineCount > 1) {
                     continue;
                 }
@@ -156,15 +163,15 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                 return;
             }
 
-            const fullName = String(card.lines[0] || '').replace(/\s+/g, ' ').trim();
+            const fullName = String(card.lines[0] || '').replace(WHITESPACE_REGEX, ' ').trim();
             if (!fullName) {
                 return;
             }
 
             const detailLines = card.lines
                 .slice(1)
-                .filter((line) => !/^connected on /i.test(line) && !/^message$/i.test(line));
-            const connectedOnRaw = card.lines.find((line) => /^connected on /i.test(line)) || '';
+                .filter((line) => !CONNECTED_REGEX.test(line) && !MSG_REGEX.test(line));
+            const connectedOnRaw = card.lines.find((line) => CONNECTED_REGEX.test(line)) || '';
             const headline = detailLines[0] || '';
             const additionalDetails = detailLines.slice(1).join(' | ');
             const profileUrl = card.profileUrl.startsWith('http') ? card.profileUrl : `${linkedinBaseUrl}${card.profileUrl}`;
