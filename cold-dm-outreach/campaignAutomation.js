@@ -197,42 +197,46 @@ async function runJobMatcher(connections, config) {
 
     console.log(`🔎 Job matcher: checking ${companiesToCheck.size} configured company career pages...`);
 
-    for (const [companyKey, companyConfig] of companiesToCheck.entries()) {
-        const keywords = Array.isArray(companyConfig.keywords) && companyConfig.keywords.length > 0
-            ? companyConfig.keywords
-            : config.jobMatcher.defaultKeywords;
+    // ⚡ Bolt: Using Promise.all() and .map() to process company career pages concurrently.
+    // This minimizes total latency since these are independent network requests.
+    await Promise.all(
+        Array.from(companiesToCheck.entries()).map(async ([companyKey, companyConfig]) => {
+            const keywords = Array.isArray(companyConfig.keywords) && companyConfig.keywords.length > 0
+                ? companyConfig.keywords
+                : config.jobMatcher.defaultKeywords;
 
-        try {
-            const response = await fetchWithTimeout(companyConfig.careersUrl, Number(config.jobMatcher.requestTimeoutMs || 15000));
-            const html = await response.text();
-            const lowerHtml = html.toLowerCase();
-            const matchedKeywords = keywords.filter((keyword) => lowerHtml.includes(String(keyword).toLowerCase()));
+            try {
+                const response = await fetchWithTimeout(companyConfig.careersUrl, Number(config.jobMatcher.requestTimeoutMs || 15000));
+                const html = await response.text();
+                const lowerHtml = html.toLowerCase();
+                const matchedKeywords = keywords.filter((keyword) => lowerHtml.includes(String(keyword).toLowerCase()));
 
-            results.set(companyKey, {
-                company: companyConfig.company,
-                careersUrl: companyConfig.careersUrl,
-                status: matchedKeywords.length > 0 ? 'Open Roles Found' : 'No Matching Roles Found',
-                matchedKeywords,
-                checkedAt: new Date().toISOString(),
-                notes: matchedKeywords.length > 0
-                    ? `Matched keywords: ${matchedKeywords.join(', ')}`
-                    : 'Configured careers page did not match the target role keywords in this run.'
-            });
+                results.set(companyKey, {
+                    company: companyConfig.company,
+                    careersUrl: companyConfig.careersUrl,
+                    status: matchedKeywords.length > 0 ? 'Open Roles Found' : 'No Matching Roles Found',
+                    matchedKeywords,
+                    checkedAt: new Date().toISOString(),
+                    notes: matchedKeywords.length > 0
+                        ? `Matched keywords: ${matchedKeywords.join(', ')}`
+                        : 'Configured careers page did not match the target role keywords in this run.'
+                });
 
-            console.log(`   • ${companyConfig.company}: ${matchedKeywords.length > 0 ? 'open-role signals found' : 'no matching role keywords'}`);
-        } catch (error) {
-            results.set(companyKey, {
-                company: companyConfig.company,
-                careersUrl: companyConfig.careersUrl,
-                status: 'Check Failed',
-                matchedKeywords: [],
-                checkedAt: new Date().toISOString(),
-                notes: `Careers page check failed: ${truncate(error.message, 220)}`
-            });
+                console.log(`   • ${companyConfig.company}: ${matchedKeywords.length > 0 ? 'open-role signals found' : 'no matching role keywords'}`);
+            } catch (error) {
+                results.set(companyKey, {
+                    company: companyConfig.company,
+                    careersUrl: companyConfig.careersUrl,
+                    status: 'Check Failed',
+                    matchedKeywords: [],
+                    checkedAt: new Date().toISOString(),
+                    notes: `Careers page check failed: ${truncate(error.message, 220)}`
+                });
 
-            console.log(`   • ${companyConfig.company}: job check failed`);
-        }
-    }
+                console.log(`   • ${companyConfig.company}: job check failed`);
+            }
+        })
+    );
 
     return results;
 }
