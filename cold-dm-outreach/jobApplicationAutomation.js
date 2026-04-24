@@ -325,6 +325,62 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoisting static regexes and arrays to avoid recreation during DOM traversal loop
+        const rolePatterns = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+
+        const genericTitlePatterns = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+
+        const genericUrlFragments = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -370,22 +426,6 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
             if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
                 return true;
@@ -398,42 +438,6 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
             return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
                 genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
@@ -496,13 +500,15 @@ async function discoverJobsForCompany(page, companyConfig, config) {
             }
         });
 
+        const normalizedHintFragments = hintFragments.map((f) => String(f).toLowerCase());
+
         document.querySelectorAll('a[href]').forEach((anchor) => {
             const href = absoluteUrl(anchor.href);
             const anchorText = normalizeTextLocal(anchor.innerText || anchor.textContent || '');
             const contextText = getContextText(anchor);
             const title = anchorText || normalizeTextLocal((contextText || '').split('\n')[0]);
             const haystack = `${href} ${anchorText} ${contextText}`.toLowerCase();
-            const looksLikeJobLink = hintFragments.some((fragment) => haystack.includes(String(fragment).toLowerCase()));
+            const looksLikeJobLink = normalizedHintFragments.some((fragment) => haystack.includes(fragment));
 
             if (!looksLikeJobLink) {
                 return;
@@ -543,6 +549,7 @@ async function discoverJobsForCompany(page, companyConfig, config) {
 
 function scoreJob(job, config) {
     const searchableText = `${job.title} ${job.summary} ${job.location} ${job.department} ${job.company}`.toLowerCase();
+
     const resumeRoleMatches = mergeUniqueValues(
         (config.resumeProfile?.roleKeywords || [])
             .filter((keyword) => searchableText.includes(keyword.toLowerCase()))
