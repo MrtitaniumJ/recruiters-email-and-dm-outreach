@@ -82,6 +82,9 @@ async function extractTotalConnectionCount(page) {
 
 async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWindow = 0 } = {}) {
     return page.evaluate(({ linkedinBaseUrl, maxComposeAnchors: maxAnchors, tailWindow: tailLimit }) => {
+        const rxMessage = /^message$/i;
+        const rxConnected = /^connected on /i;
+
         function getCardDataFromLink(link) {
             let node = link;
             let bestMatch = null;
@@ -101,12 +104,20 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                     continue;
                 }
 
-                const messageLineCount = lines.filter((line) => /^message$/i.test(line)).length;
+                let messageLineCount = 0;
+                let connectedLineCount = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    if (rxMessage.test(lines[i])) {
+                        messageLineCount++;
+                    } else if (rxConnected.test(lines[i])) {
+                        connectedLineCount++;
+                    }
+                }
+
                 if (messageLineCount !== 1) {
                     continue;
                 }
 
-                const connectedLineCount = lines.filter((line) => /^connected on /i.test(line)).length;
                 if (connectedLineCount > 1) {
                     continue;
                 }
@@ -163,8 +174,8 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
 
             const detailLines = card.lines
                 .slice(1)
-                .filter((line) => !/^connected on /i.test(line) && !/^message$/i.test(line));
-            const connectedOnRaw = card.lines.find((line) => /^connected on /i.test(line)) || '';
+                .filter((line) => !rxConnected.test(line) && !rxMessage.test(line));
+            const connectedOnRaw = card.lines.find((line) => rxConnected.test(line)) || '';
             const headline = detailLines[0] || '';
             const additionalDetails = detailLines.slice(1).join(' | ');
             const profileUrl = card.profileUrl.startsWith('http') ? card.profileUrl : `${linkedinBaseUrl}${card.profileUrl}`;
