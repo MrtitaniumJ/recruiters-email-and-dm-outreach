@@ -325,6 +325,62 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // Hoist static arrays and regexes out of hot functions to avoid per-node reallocation
+        const locationPattern = /remote|hybrid|india|bangalore|bengaluru|gurgaon|noida|pune|hyderabad|mumbai|delhi/i;
+        const employmentPatterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
+        const rolePatterns = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+        const genericTitlePatterns = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+        const genericUrlFragments = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -358,34 +414,17 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                 .map((segment) => segment.trim())
                 .filter(Boolean);
 
-            return segments.find((segment) => /remote|hybrid|india|bangalore|bengaluru|gurgaon|noida|pune|hyderabad|mumbai|delhi/i.test(segment)) || '';
+            return segments.find((segment) => locationPattern.test(segment)) || '';
         }
 
         function detectEmploymentType(text) {
             const normalized = normalizeTextLocal(text);
-            const patterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
-            return patterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
+            return employmentPatterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
         }
 
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
             if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
                 return true;
@@ -398,42 +437,6 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
             return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
                 genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
@@ -667,6 +670,9 @@ function pickJobsForAction(jobs, config) {
 
 async function clickApplyEntryPoint(page) {
     const clicked = await page.evaluate(() => {
+        // Hoist regex outside of find callback to prevent recompilation per node
+        const applyPattern = /apply|submit application|easy apply|candidate home/i;
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -679,7 +685,7 @@ async function clickApplyEntryPoint(page) {
                 element.getAttribute('aria-label') ||
                 ''
             ).toLowerCase();
-            return /apply|submit application|easy apply|candidate home/i.test(text);
+            return applyPattern.test(text);
         });
 
         if (!target) {
@@ -1055,6 +1061,9 @@ async function uploadResumeIfPresent(page, config) {
 
 async function submitApplication(page) {
     const clicked = await page.evaluate(() => {
+        // Hoist regex outside of find callback
+        const submitPattern = /submit|apply|send application|finish/i;
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -1068,7 +1077,7 @@ async function submitApplication(page) {
                 element.getAttribute('aria-label') ||
                 ''
             ).toLowerCase();
-            return /submit|apply|send application|finish/i.test(text) && !element.disabled;
+            return submitPattern.test(text) && !element.disabled;
         });
 
         if (!target) {
