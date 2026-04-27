@@ -201,6 +201,7 @@ function cleanCompanyGuess(value) {
 }
 
 module.exports = {
+    textOf,
     classifyContactType,
     computeRelevance,
     computeScore,
