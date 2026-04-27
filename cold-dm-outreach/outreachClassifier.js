@@ -201,6 +201,7 @@ function cleanCompanyGuess(value) {
 }
 
 module.exports = {
+    anyMatch,
     classifyContactType,
     computeRelevance,
     computeScore,
