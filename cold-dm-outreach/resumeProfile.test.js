@@ -57,3 +57,69 @@ describe('mergeUniqueValues', () => {
         assert.deepStrictEqual(mergeUniqueValues(null, 123, 'string'), []);
     });
 });
+
+describe('extractResumeText', () => {
+    const { extractResumeText } = require('./resumeProfile');
+    const fs = require('fs');
+    const cp = require('child_process');
+    const { mock } = require('node:test');
+
+    test('should return empty string if no resumePath provided', () => {
+        assert.strictEqual(extractResumeText(), '');
+        assert.strictEqual(extractResumeText(null), '');
+    });
+
+    test('should return empty string if file does not exist', () => {
+        mock.method(fs, 'existsSync', () => false);
+        assert.strictEqual(extractResumeText('fake/path.pdf'), '');
+    });
+
+    test('should return extracted text if python succeeds', () => {
+        mock.method(fs, 'existsSync', () => true);
+        mock.method(cp, 'execFileSync', (cmd, args, options) => {
+            if (cmd === 'python') return 'extracted text';
+            throw new Error('command not found');
+        });
+
+        assert.strictEqual(extractResumeText('fake/path.pdf'), 'extracted text');
+    });
+
+    test('should fallback to py if python fails', () => {
+        mock.method(fs, 'existsSync', () => true);
+        const calledCommands = [];
+        mock.method(cp, 'execFileSync', (cmd, args, options) => {
+            calledCommands.push(cmd);
+            if (cmd === 'python') {
+                throw new Error('python not found');
+            }
+            return 'py text';
+        });
+
+        assert.strictEqual(extractResumeText('fake/path.pdf'), 'py text');
+        assert.deepStrictEqual(calledCommands, ['python', 'py']);
+    });
+
+    test('should continue to next command if output is empty after normalization', () => {
+        mock.method(fs, 'existsSync', () => true);
+        const calledCommands = [];
+        mock.method(cp, 'execFileSync', (cmd) => {
+            calledCommands.push(cmd);
+            if (cmd === 'python') {
+                return '   \n  \t  '; // normalizes to empty
+            }
+            return 'valid text';
+        });
+
+        assert.strictEqual(extractResumeText('fake/path.pdf'), 'valid text');
+        assert.deepStrictEqual(calledCommands, ['python', 'py']);
+    });
+
+    test('should return empty string if all commands fail', () => {
+        mock.method(fs, 'existsSync', () => true);
+        mock.method(cp, 'execFileSync', () => {
+            throw new Error('command not found');
+        });
+
+        assert.strictEqual(extractResumeText('fake/path.pdf'), '');
+    });
+});
