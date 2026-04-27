@@ -325,6 +325,62 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoist static patterns and configurations outside per-node helper functions
+        // to prevent unnecessary memory allocations and regex recompilation on every DOM node inspected.
+        const EMPLOYMENT_PATTERNS = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
+        const ROLE_PATTERNS = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+        const GENERIC_TITLE_PATTERNS = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+        const GENERIC_URL_FRAGMENTS = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -362,81 +418,28 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         }
 
         function detectEmploymentType(text) {
-            const normalized = normalizeTextLocal(text);
-            const patterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
-            return patterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
+            const normalized = normalizeTextLocal(text).toLowerCase();
+            return EMPLOYMENT_PATTERNS.find((pattern) => normalized.includes(pattern)) || '';
         }
 
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
-            if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
+            if (ROLE_PATTERNS.some((pattern) => pattern.test(normalizedTitle))) {
                 return true;
             }
 
             return normalizedTitle.split(' ').length >= 2 &&
-                rolePatterns.some((pattern) => pattern.test(normalizedContext));
+                ROLE_PATTERNS.some((pattern) => pattern.test(normalizedContext));
         }
 
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
-            return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
-                genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
+            return GENERIC_TITLE_PATTERNS.some((pattern) => pattern.test(normalizedTitle)) ||
+                GENERIC_URL_FRAGMENTS.some((fragment) => normalizedUrl.includes(fragment));
         }
 
         function pushJob(jobs, seenKeys, job) {
