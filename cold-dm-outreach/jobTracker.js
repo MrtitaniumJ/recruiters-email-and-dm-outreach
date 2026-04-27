@@ -515,6 +515,24 @@ class JobTracker {
         });
     }
 
+    async bulkUpdateApplicationResults(results, runDateIso) {
+        if (!this.enabled || !results || results.length === 0) {
+            return;
+        }
+
+        const CONCURRENCY = 5;
+        for (let i = 0; i < results.length; i += CONCURRENCY) {
+            const chunk = results.slice(i, i + CONCURRENCY);
+            await Promise.all(chunk.map(async ({ job, result }) => {
+                try {
+                    await this.updateApplicationResult(job, result, runDateIso);
+                } catch (error) {
+                    console.warn(`⚠️ Failed to update Notion application result for ${job.title}: ${error.message}`);
+                }
+            }));
+        }
+    }
+
     async createDigestPage({ title, markdown }) {
         if (!this.enabled) {
             return null;
