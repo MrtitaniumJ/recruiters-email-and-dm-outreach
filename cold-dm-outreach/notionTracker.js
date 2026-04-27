@@ -465,6 +465,39 @@ class NotionTracker {
             existingRecord.outreachStatus !== outreachStatus;
     }
 
+    buildLocalRecord(connection, pageId, outreachStatus, existingRecord = null) {
+        return {
+            pageId,
+            profileKey: connection.profileKey,
+            name: connection.fullName,
+            firstName: connection.firstName,
+            profileUrl: connection.profileUrl || '',
+            messageUrl: connection.messageUrl || '',
+            companyName: connection.companyName || '',
+            contactType: connection.contactType || '',
+            templateVariant: connection.templateVariant || '',
+            headline: connection.headline || '',
+            additionalDetails: connection.additionalDetails || '',
+            connectedOnRaw: connection.connectedOnRaw || '',
+            connectedOnDate: connection.connectedOnDate || '',
+            outreachStatus,
+            relevance: connection.relevanceLabel,
+            matchScore: connection.matchScore,
+            matchReason: connection.matchReason || '',
+            careersUrl: connection.careersUrl || '',
+            jobMatchStatus: connection.jobMatchStatus || '',
+            jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
+            jobMatchNotes: connection.jobMatchNotes || '',
+            lastJobCheckAt: connection.lastJobCheckAt || '',
+            messageAttempts: existingRecord?.messageAttempts || 0,
+            notes: existingRecord?.notes || '',
+            lastMessagedAt: existingRecord?.lastMessagedAt || '',
+            lastFollowUpAt: existingRecord?.lastFollowUpAt || '',
+            followUpStage: existingRecord?.followUpStage || 0,
+            replied: existingRecord?.replied || false
+        };
+    }
+
     async syncConnections(connections, context, options = {}) {
         if (!this.enabled) {
             return this.recordsByProfileKey;
@@ -509,33 +542,7 @@ class NotionTracker {
                         }
                     });
 
-                    this.recordsByProfileKey.set(connection.profileKey, {
-                        pageId: createdPage.id,
-                        profileKey: connection.profileKey,
-                        name: connection.fullName,
-                        firstName: connection.firstName,
-                        profileUrl: connection.profileUrl || '',
-                        messageUrl: connection.messageUrl || '',
-                        companyName: connection.companyName || '',
-                        contactType: connection.contactType || '',
-                        templateVariant: connection.templateVariant || '',
-                        headline: connection.headline || '',
-                        additionalDetails: connection.additionalDetails || '',
-                        connectedOnRaw: connection.connectedOnRaw || '',
-                        connectedOnDate: connection.connectedOnDate || '',
-                        outreachStatus,
-                        relevance: connection.relevanceLabel,
-                        matchScore: connection.matchScore,
-                        matchReason: connection.matchReason || '',
-                        careersUrl: connection.careersUrl || '',
-                        jobMatchStatus: connection.jobMatchStatus || '',
-                        jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
-                        jobMatchNotes: connection.jobMatchNotes || '',
-                        lastJobCheckAt: connection.lastJobCheckAt || '',
-                        messageAttempts: 0,
-                        notes: '',
-                        lastMessagedAt: ''
-                    });
+                    this.recordsByProfileKey.set(connection.profileKey, this.buildLocalRecord(connection, createdPage.id, outreachStatus));
 
                     created += 1;
                     await sleep(MUTATION_DELAY_MS);
@@ -547,33 +554,7 @@ class NotionTracker {
                 }
 
                 if (existingRecord) {
-                    this.recordsByProfileKey.set(connection.profileKey, {
-                        pageId: existingRecord.pageId,
-                        profileKey: connection.profileKey,
-                        name: connection.fullName,
-                        firstName: connection.firstName,
-                        profileUrl: connection.profileUrl || '',
-                        messageUrl: connection.messageUrl || '',
-                        companyName: connection.companyName || '',
-                        contactType: connection.contactType || '',
-                        templateVariant: connection.templateVariant || '',
-                        headline: connection.headline || '',
-                        additionalDetails: connection.additionalDetails || '',
-                        connectedOnRaw: connection.connectedOnRaw || '',
-                        connectedOnDate: connection.connectedOnDate || '',
-                        outreachStatus,
-                        relevance: connection.relevanceLabel,
-                        matchScore: connection.matchScore,
-                        matchReason: connection.matchReason || '',
-                        careersUrl: connection.careersUrl || '',
-                        jobMatchStatus: connection.jobMatchStatus || '',
-                        jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
-                        jobMatchNotes: connection.jobMatchNotes || '',
-                        lastJobCheckAt: connection.lastJobCheckAt || '',
-                        messageAttempts: existingRecord.messageAttempts || 0,
-                        notes: existingRecord.notes || '',
-                        lastMessagedAt: existingRecord.lastMessagedAt || ''
-                    });
+                    this.recordsByProfileKey.set(connection.profileKey, this.buildLocalRecord(connection, existingRecord.pageId, outreachStatus, existingRecord));
                 }
 
                 await sleep(MUTATION_DELAY_MS);
