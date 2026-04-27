@@ -1430,9 +1430,7 @@ async function main() {
 
             applicationResults.push({ job, result });
 
-            if (tracker.enabled) {
-                await tracker.updateApplicationResult(job, result, runDateIso).catch(() => {});
-            }
+
 
             if (result.status === 'Applied') {
                 state.appliedJobKeys = Array.from(new Set([...(state.appliedJobKeys || []), job.jobKey]));
@@ -1446,6 +1444,10 @@ async function main() {
                 url: job.url,
                 status: result.status
             };
+        }
+
+        if (tracker.enabled && applicationResults.length > 0) {
+            await tracker.bulkUpdateApplicationResults(applicationResults, runDateIso);
         }
 
         for (const job of annotatedJobs) {
