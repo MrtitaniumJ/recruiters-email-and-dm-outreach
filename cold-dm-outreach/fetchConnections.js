@@ -335,8 +335,19 @@ async function main() {
     }
 }
 
-main().catch((error) => {
+if (require.main === module) {
+    main().catch((error) => {
     console.error('❌ Fatal error in fetchConnections:', error.message);
     console.error(error.stack);
     process.exit(1);
 });
+}
+
+module.exports = {
+    parseBoolean,
+    parseConnectedOnDate,
+    detectCompanyName,
+    enrichConnection,
+    parseFetchMode,
+    buildConfig
+};
