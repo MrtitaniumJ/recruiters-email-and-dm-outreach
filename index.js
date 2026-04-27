@@ -194,12 +194,14 @@ Software Developer
             await transporter.sendMail(mailOptions);
             console.log(`      ✅ Successfully sent!`);
             
-            // Re-save status to Notion Database 
-            await rawNotionRequest(`/pages/${pageId}`, 'PATCH', {
+            // Re-save status to Notion Database (Performance Optimization: Run concurrently with delay)
+            const updatePromise = rawNotionRequest(`/pages/${pageId}`, 'PATCH', {
                  properties: {
                      'Status': { select: { name: 'Sent' } },
                      'Remarks': { rich_text: [{ text: { content: `Sent on ${new Date().toISOString().split('T')[0]}` } }] }
                  }
+             }).catch(err => {
+                 console.error(`      ⚠️ Failed to update Notion status for sent email: ${err.message}`);
              });
 
             sentCount++;
@@ -207,7 +209,9 @@ Software Developer
             // Wait before sending the next one to avoid spam filters (except for the last one)
             if (i < pendingRecords.length - 1) {
                 console.log(`      ⏱️  Waiting ${DELAY_BETWEEN_EMAILS_MS / 1000} seconds...`);
-                await delay(DELAY_BETWEEN_EMAILS_MS);
+                await Promise.all([delay(DELAY_BETWEEN_EMAILS_MS), updatePromise]);
+            } else {
+                await updatePromise;
             }
         } catch (error) {
             console.error(`      ❌ Failed to send: ${error.message}`);
