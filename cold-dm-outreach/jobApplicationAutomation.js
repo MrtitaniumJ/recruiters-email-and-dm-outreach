@@ -1,13 +1,22 @@
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer');
+let puppeteer;
+try {
+    puppeteer = require('puppeteer');
+} catch (e) {
+    console.warn('Puppeteer not found, browser automation will not be available');
+}
 
 const { loadCampaignConfig } = require('./campaignAutomation');
 const { createJobTracker } = require('./jobTracker');
 const { buildResumeProfile } = require('./resumeProfile');
 
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), override: false });
+try {
+    require('dotenv').config({ path: path.join(__dirname, '.env') });
+    require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), override: false });
+} catch (e) {
+    console.warn('dotenv not found, environment variables will not be loaded from .env files');
+}
 
 const JOB_CONFIG_PATH = path.join(__dirname, 'jobApplication.config.json');
 const JOB_STATE_PATH = path.join(__dirname, 'job_application_state.json');
@@ -1487,8 +1496,15 @@ async function main() {
     }
 }
 
-main().catch((error) => {
-    console.error('❌ Fatal job automation error:', error.message);
-    console.error(error.stack);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch((error) => {
+        console.error('❌ Fatal job automation error:', error.message);
+        // Do not log full stack traces (error.stack) to standard error or console in the main application catch blocks; log only the high-level error message instead.
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    readJsonFile,
+    writeJsonFile
+};
