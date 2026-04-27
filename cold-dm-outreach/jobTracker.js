@@ -591,5 +591,6 @@ function createJobTracker({ projectRoot, baseDir, env }) {
 }
 
 module.exports = {
-    createJobTracker
+    createJobTracker,
+    readFileIfExists
 };
