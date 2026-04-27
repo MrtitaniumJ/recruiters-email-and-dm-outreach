@@ -771,5 +771,6 @@ function createNotionTracker({ projectRoot, baseDir, env }) {
 
 module.exports = {
     createNotionTracker,
-    readLegacyNotionSetup
+    readLegacyNotionSetup,
+    readFileIfExists
 };
