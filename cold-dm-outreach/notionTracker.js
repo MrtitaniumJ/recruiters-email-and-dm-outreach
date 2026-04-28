@@ -485,106 +485,101 @@ class NotionTracker {
             console.log(`🗂️ ${label}: syncing ${connections.length} connections...`);
         }
 
-        for (const connection of connections) {
-            const existingRecord = this.recordsByProfileKey.get(connection.profileKey);
-            const properties = this.buildSyncProperties(connection, context, existingRecord);
-            const outreachStatus = getSelectName(properties['Outreach Status']);
+        const CHUNK_SIZE = 3;
+        for (let i = 0; i < connections.length; i += CHUNK_SIZE) {
+            const chunk = connections.slice(i, i + CHUNK_SIZE);
 
-            try {
-                if (!this.shouldUpdateExistingRecord(existingRecord, connection, outreachStatus)) {
-                    skipped += 1;
-                } else if (existingRecord) {
-                    await this.request(`/pages/${existingRecord.pageId}`, 'PATCH', { properties });
-                    updated += 1;
-                } else {
-                    const createdPage = await this.request('/pages', 'POST', {
-                        parent: {
-                            database_id: databaseId
-                        },
-                        properties: {
-                            ...properties,
-                            'Message Attempts': numberProperty(0),
-                            'Last Messaged At': dateProperty(null),
-                            Notes: richTextProperty('')
-                        }
-                    });
+            await Promise.all(chunk.map(async (connection) => {
+                const existingRecord = this.recordsByProfileKey.get(connection.profileKey);
+                const properties = this.buildSyncProperties(connection, context, existingRecord);
+                const outreachStatus = getSelectName(properties['Outreach Status']);
 
-                    this.recordsByProfileKey.set(connection.profileKey, {
-                        pageId: createdPage.id,
-                        profileKey: connection.profileKey,
-                        name: connection.fullName,
-                        firstName: connection.firstName,
-                        profileUrl: connection.profileUrl || '',
-                        messageUrl: connection.messageUrl || '',
-                        companyName: connection.companyName || '',
-                        contactType: connection.contactType || '',
-                        templateVariant: connection.templateVariant || '',
-                        headline: connection.headline || '',
-                        additionalDetails: connection.additionalDetails || '',
-                        connectedOnRaw: connection.connectedOnRaw || '',
-                        connectedOnDate: connection.connectedOnDate || '',
-                        outreachStatus,
-                        relevance: connection.relevanceLabel,
-                        matchScore: connection.matchScore,
-                        matchReason: connection.matchReason || '',
-                        careersUrl: connection.careersUrl || '',
-                        jobMatchStatus: connection.jobMatchStatus || '',
-                        jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
-                        jobMatchNotes: connection.jobMatchNotes || '',
-                        lastJobCheckAt: connection.lastJobCheckAt || '',
-                        messageAttempts: 0,
-                        notes: '',
-                        lastMessagedAt: ''
-                    });
+                try {
+                    if (!this.shouldUpdateExistingRecord(existingRecord, connection, outreachStatus)) {
+                        skipped += 1;
+                    } else if (existingRecord) {
+                        await this.request(`/pages/${existingRecord.pageId}`, 'PATCH', { properties });
+                        updated += 1;
+                        this.recordsByProfileKey.set(connection.profileKey, {
+                            pageId: existingRecord.pageId,
+                            profileKey: connection.profileKey,
+                            name: connection.fullName,
+                            firstName: connection.firstName,
+                            profileUrl: connection.profileUrl || '',
+                            messageUrl: connection.messageUrl || '',
+                            companyName: connection.companyName || '',
+                            contactType: connection.contactType || '',
+                            templateVariant: connection.templateVariant || '',
+                            headline: connection.headline || '',
+                            additionalDetails: connection.additionalDetails || '',
+                            connectedOnRaw: connection.connectedOnRaw || '',
+                            connectedOnDate: connection.connectedOnDate || '',
+                            outreachStatus,
+                            relevance: connection.relevanceLabel,
+                            matchScore: connection.matchScore,
+                            matchReason: connection.matchReason || '',
+                            careersUrl: connection.careersUrl || '',
+                            jobMatchStatus: connection.jobMatchStatus || '',
+                            jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
+                            jobMatchNotes: connection.jobMatchNotes || '',
+                            lastJobCheckAt: connection.lastJobCheckAt || '',
+                            messageAttempts: existingRecord.messageAttempts || 0,
+                            notes: existingRecord.notes || '',
+                            lastMessagedAt: existingRecord.lastMessagedAt || ''
+                        });
+                    } else {
+                        const createdPage = await this.request('/pages', 'POST', {
+                            parent: {
+                                database_id: databaseId
+                            },
+                            properties: {
+                                ...properties,
+                                'Message Attempts': numberProperty(0),
+                                'Last Messaged At': dateProperty(null),
+                                Notes: richTextProperty('')
+                            }
+                        });
 
-                    created += 1;
-                    await sleep(MUTATION_DELAY_MS);
-                    processed += 1;
-                    if (processed === 1 || processed % 10 === 0 || processed === connections.length) {
-                        console.log(`   • ${label}: ${processed}/${connections.length} processed (created ${created}, updated ${updated}, skipped ${skipped})`);
+                        this.recordsByProfileKey.set(connection.profileKey, {
+                            pageId: createdPage.id,
+                            profileKey: connection.profileKey,
+                            name: connection.fullName,
+                            firstName: connection.firstName,
+                            profileUrl: connection.profileUrl || '',
+                            messageUrl: connection.messageUrl || '',
+                            companyName: connection.companyName || '',
+                            contactType: connection.contactType || '',
+                            templateVariant: connection.templateVariant || '',
+                            headline: connection.headline || '',
+                            additionalDetails: connection.additionalDetails || '',
+                            connectedOnRaw: connection.connectedOnRaw || '',
+                            connectedOnDate: connection.connectedOnDate || '',
+                            outreachStatus,
+                            relevance: connection.relevanceLabel,
+                            matchScore: connection.matchScore,
+                            matchReason: connection.matchReason || '',
+                            careersUrl: connection.careersUrl || '',
+                            jobMatchStatus: connection.jobMatchStatus || '',
+                            jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
+                            jobMatchNotes: connection.jobMatchNotes || '',
+                            lastJobCheckAt: connection.lastJobCheckAt || '',
+                            messageAttempts: 0,
+                            notes: '',
+                            lastMessagedAt: ''
+                        });
+                        created += 1;
                     }
-                    continue;
+                } catch (error) {
+                    console.warn(`⚠️ Notion sync skipped ${connection.fullName}: ${error.message}`);
                 }
 
-                if (existingRecord) {
-                    this.recordsByProfileKey.set(connection.profileKey, {
-                        pageId: existingRecord.pageId,
-                        profileKey: connection.profileKey,
-                        name: connection.fullName,
-                        firstName: connection.firstName,
-                        profileUrl: connection.profileUrl || '',
-                        messageUrl: connection.messageUrl || '',
-                        companyName: connection.companyName || '',
-                        contactType: connection.contactType || '',
-                        templateVariant: connection.templateVariant || '',
-                        headline: connection.headline || '',
-                        additionalDetails: connection.additionalDetails || '',
-                        connectedOnRaw: connection.connectedOnRaw || '',
-                        connectedOnDate: connection.connectedOnDate || '',
-                        outreachStatus,
-                        relevance: connection.relevanceLabel,
-                        matchScore: connection.matchScore,
-                        matchReason: connection.matchReason || '',
-                        careersUrl: connection.careersUrl || '',
-                        jobMatchStatus: connection.jobMatchStatus || '',
-                        jobMatchKeywords: (connection.jobMatchKeywords || []).join(', '),
-                        jobMatchNotes: connection.jobMatchNotes || '',
-                        lastJobCheckAt: connection.lastJobCheckAt || '',
-                        messageAttempts: existingRecord.messageAttempts || 0,
-                        notes: existingRecord.notes || '',
-                        lastMessagedAt: existingRecord.lastMessagedAt || ''
-                    });
-                }
+                processed += 1;
+            }));
 
-                await sleep(MUTATION_DELAY_MS);
-            } catch (error) {
-                console.warn(`⚠️ Notion sync skipped ${connection.fullName}: ${error.message}`);
-            }
-
-            processed += 1;
-            if (processed === 1 || processed % 10 === 0 || processed === connections.length) {
+            if (processed === 1 || processed % 10 === 0 || processed === connections.length || processed % 10 < CHUNK_SIZE && processed > 10) {
                 console.log(`   • ${label}: ${processed}/${connections.length} processed (created ${created}, updated ${updated}, skipped ${skipped})`);
             }
+            await sleep(MUTATION_DELAY_MS);
         }
 
         return this.recordsByProfileKey;
