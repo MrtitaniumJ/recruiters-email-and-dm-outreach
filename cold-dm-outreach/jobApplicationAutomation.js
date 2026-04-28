@@ -452,7 +452,11 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         const jobs = [];
         const seenKeys = new Set();
 
-        document.querySelectorAll('script[type="application/ld+json"]').forEach((script) => {
+        // ⚡ Bolt: Using standard for loops instead of querySelectorAll(...).forEach(...)
+        // in a hot DOM traversal path to avoid anonymous function allocation overhead.
+        const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (let i = 0; i < scripts.length; i++) {
+            const script = scripts[i];
             try {
                 const parsed = JSON.parse(script.textContent || 'null');
                 const payloads = Array.isArray(parsed) ? parsed : [parsed];
@@ -492,36 +496,46 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                     }
                 }
             } catch (error) {
-                return;
+                continue;
             }
-        });
+        }
 
-        document.querySelectorAll('a[href]').forEach((anchor) => {
+        const anchors = document.querySelectorAll('a[href]');
+        for (let i = 0; i < anchors.length; i++) {
+            const anchor = anchors[i];
             const href = absoluteUrl(anchor.href);
             const anchorText = normalizeTextLocal(anchor.innerText || anchor.textContent || '');
             const contextText = getContextText(anchor);
             const title = anchorText || normalizeTextLocal((contextText || '').split('\n')[0]);
             const haystack = `${href} ${anchorText} ${contextText}`.toLowerCase();
-            const looksLikeJobLink = hintFragments.some((fragment) => haystack.includes(String(fragment).toLowerCase()));
+
+            // Replaced .some with inline for-loop to avoid callback allocation
+            let looksLikeJobLink = false;
+            for (let j = 0; j < hintFragments.length; j++) {
+                if (haystack.includes(String(hintFragments[j]).toLowerCase())) {
+                    looksLikeJobLink = true;
+                    break;
+                }
+            }
 
             if (!looksLikeJobLink) {
-                return;
+                continue;
             }
 
             if (title.length < 4) {
-                return;
+                continue;
             }
 
             if (/learn more|read more|view all|careers|our team|privacy|terms|benefits/i.test(title)) {
-                return;
+                continue;
             }
 
             if (!looksLikeRoleTitle(title, contextText)) {
-                return;
+                continue;
             }
 
              if (isGenericCareerNavigation(title, href)) {
-                return;
+                continue;
             }
 
             pushJob(jobs, seenKeys, {
@@ -535,7 +549,7 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                 employmentType: detectEmploymentType(contextText),
                 summary: normalizeTextLocal(contextText).slice(0, 900)
             });
-        });
+        }
 
         return jobs.slice(0, 100);
     }, companyConfig.company, ROLE_LINK_HINTS);
