@@ -325,6 +325,62 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoisted static arrays out of per-node functions to avoid
+        // allocation and regex compilation overhead on every DOM node check.
+        const employmentPatterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
+        const rolePatterns = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+        const genericTitlePatterns = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+        const genericUrlFragments = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -362,81 +418,64 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         }
 
         function detectEmploymentType(text) {
-            const normalized = normalizeTextLocal(text);
-            const patterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
-            return patterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
+            const normalized = normalizeTextLocal(text).toLowerCase();
+            // ⚡ Bolt: Using a standard for loop instead of higher-order array methods (.find)
+            // in hot paths (DOM traversal) to improve CPU efficiency and avoid
+            // anonymous function allocation overhead.
+            for (let i = 0; i < employmentPatterns.length; i++) {
+                if (normalized.includes(employmentPatterns[i])) {
+                    return employmentPatterns[i];
+                }
+            }
+            return '';
         }
 
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
-            const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
-            if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
+            let titleMatch = false;
+            for (let i = 0; i < rolePatterns.length; i++) {
+                if (rolePatterns[i].test(normalizedTitle)) {
+                    titleMatch = true;
+                    break;
+                }
+            }
+
+            if (titleMatch) {
                 return true;
             }
 
-            return normalizedTitle.split(' ').length >= 2 &&
-                rolePatterns.some((pattern) => pattern.test(normalizedContext));
+            if (normalizedTitle.split(' ').length < 2) {
+                return false;
+            }
+
+            const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
+            for (let i = 0; i < rolePatterns.length; i++) {
+                if (rolePatterns[i].test(normalizedContext)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
-            return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
-                genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
+            for (let i = 0; i < genericTitlePatterns.length; i++) {
+                if (genericTitlePatterns[i].test(normalizedTitle)) {
+                    return true;
+                }
+            }
+
+            for (let i = 0; i < genericUrlFragments.length; i++) {
+                if (normalizedUrl.includes(genericUrlFragments[i])) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function pushJob(jobs, seenKeys, job) {
@@ -502,7 +541,14 @@ async function discoverJobsForCompany(page, companyConfig, config) {
             const contextText = getContextText(anchor);
             const title = anchorText || normalizeTextLocal((contextText || '').split('\n')[0]);
             const haystack = `${href} ${anchorText} ${contextText}`.toLowerCase();
-            const looksLikeJobLink = hintFragments.some((fragment) => haystack.includes(String(fragment).toLowerCase()));
+
+            let looksLikeJobLink = false;
+            for (let i = 0; i < hintFragments.length; i++) {
+                if (haystack.includes(String(hintFragments[i]).toLowerCase())) {
+                    looksLikeJobLink = true;
+                    break;
+                }
+            }
 
             if (!looksLikeJobLink) {
                 return;
