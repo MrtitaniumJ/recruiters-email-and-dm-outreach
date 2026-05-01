@@ -5,3 +5,7 @@
 ## 2024-05-24 - Avoiding Higher-Order Array Methods in Hot Loops
 **Learning:** Using array iteration methods like `some` and `reduce` in a hot path (such as executing an array of regexes against many strings in `outreachClassifier.js`) incurs significant overhead compared to simple `for` loops, due to anonymous function allocations and callback invocation costs.
 **Action:** When working on classification or processing loops that iterate over thousands of objects per run, replace `some`, `reduce`, or `map` with standard `for` loops to minimize CPU cycles and memory allocations.
+
+## 2024-05-01 - Fast DOM Geometric Checks Before style computation
+**Learning:** In Puppeteer's `page.evaluate`, invoking `window.getComputedStyle()` indiscriminately on every element returned by `document.querySelectorAll('*')` causes massive performance degradation and unnecessary reflow calculations.
+**Action:** Always perform fast, non-blocking geometric property checks (e.g., `element.scrollHeight > element.clientHeight`) to short-circuit evaluation before invoking expensive methods like `getComputedStyle`.
