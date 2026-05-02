@@ -248,14 +248,25 @@ async function collectConnections(page, maxScrollSteps, maxConnectionsToSync) {
         }
 
         await page.evaluate(() => {
-            const scrollableElements = Array.from(document.querySelectorAll('*'))
-                .filter((element) => {
-                    const style = window.getComputedStyle(element);
-                    return /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 80;
-                })
-                .sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
+            const allElements = document.querySelectorAll('*');
+            let maxScrollTarget = null;
+            let maxScrollArea = 0;
 
-            const target = scrollableElements[0] || document.scrollingElement || document.documentElement || document.body;
+            for (let i = 0; i < allElements.length; i++) {
+                const element = allElements[i];
+                const scrollArea = element.scrollHeight - element.clientHeight;
+
+                // Fast geometric check first to avoid expensive getComputedStyle calls
+                if (scrollArea > 80 && scrollArea > maxScrollArea) {
+                    const style = window.getComputedStyle(element);
+                    if (/(auto|scroll)/.test(style.overflowY)) {
+                        maxScrollArea = scrollArea;
+                        maxScrollTarget = element;
+                    }
+                }
+            }
+
+            const target = maxScrollTarget || document.scrollingElement || document.documentElement || document.body;
             target.scrollBy(0, Math.max(window.innerHeight, 900));
         });
 
