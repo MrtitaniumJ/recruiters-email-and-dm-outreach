@@ -325,6 +325,63 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoist static patterns outside of hot loop functions (looksLikeRoleTitle, isGenericCareerNavigation)
+        // to avoid allocating these arrays and compiling these regexes on every single DOM node check.
+        const rolePatterns = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+
+        const genericTitlePatterns = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+
+        const genericUrlFragments = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -370,73 +427,40 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
-            if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
-                return true;
+            for (let i = 0; i < rolePatterns.length; i++) {
+                if (rolePatterns[i].test(normalizedTitle)) {
+                    return true;
+                }
             }
 
-            return normalizedTitle.split(' ').length >= 2 &&
-                rolePatterns.some((pattern) => pattern.test(normalizedContext));
+            if (normalizedTitle.split(' ').length >= 2) {
+                for (let i = 0; i < rolePatterns.length; i++) {
+                    if (rolePatterns[i].test(normalizedContext)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
-            return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
-                genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
+            for (let i = 0; i < genericTitlePatterns.length; i++) {
+                if (genericTitlePatterns[i].test(normalizedTitle)) {
+                    return true;
+                }
+            }
+
+            for (let i = 0; i < genericUrlFragments.length; i++) {
+                if (normalizedUrl.includes(genericUrlFragments[i])) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function pushJob(jobs, seenKeys, job) {
