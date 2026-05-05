@@ -82,6 +82,11 @@ async function extractTotalConnectionCount(page) {
 
 async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWindow = 0 } = {}) {
     return page.evaluate(({ linkedinBaseUrl, maxComposeAnchors: maxAnchors, tailWindow: tailLimit }) => {
+        // ⚡ Bolt: Hoist static regexes out of hot loop processing functions
+        // to avoid repeated regex compilation inside the loop.
+        const MESSAGE_REGEX = /^message$/i;
+        const CONNECTED_ON_REGEX = /^connected on /i;
+
         function getCardDataFromLink(link) {
             let node = link;
             let bestMatch = null;
@@ -101,12 +106,23 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                     continue;
                 }
 
-                const messageLineCount = lines.filter((line) => /^message$/i.test(line)).length;
+                let messageLineCount = 0;
+                let connectedLineCount = 0;
+
+                // ⚡ Bolt: Replace map/filter chains with a single loop
+                // to avoid array allocations inside hot path.
+                for (let i = 0; i < lines.length; i++) {
+                    if (MESSAGE_REGEX.test(lines[i])) {
+                        messageLineCount++;
+                    } else if (CONNECTED_ON_REGEX.test(lines[i])) {
+                        connectedLineCount++;
+                    }
+                }
+
                 if (messageLineCount !== 1) {
                     continue;
                 }
 
-                const connectedLineCount = lines.filter((line) => /^connected on /i.test(line)).length;
                 if (connectedLineCount > 1) {
                     continue;
                 }
@@ -116,7 +132,12 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                     continue;
                 }
 
-                const textLength = lines.join(' ').length;
+                let textLength = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    textLength += lines[i].length;
+                }
+                textLength += (lines.length > 1 ? lines.length - 1 : 0);
+
                 if (!bestMatch || textLength < bestMatch.textLength) {
                     bestMatch = {
                         lines,
@@ -145,26 +166,41 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
             const headCount = Math.ceil(maxAnchors / 2);
             const tailCount = maxAnchors - headCount;
             const picked = new Set();
-            allComposeLinks.slice(0, headCount).forEach((link) => picked.add(link));
-            allComposeLinks.slice(-tailCount).forEach((link) => picked.add(link));
+            // ⚡ Bolt: Replace forEach to avoid function allocation in hot path
+            for (let i = 0; i < headCount; i++) {
+                picked.add(allComposeLinks[i]);
+            }
+            for (let i = allComposeLinks.length - tailCount; i < allComposeLinks.length; i++) {
+                picked.add(allComposeLinks[i]);
+            }
             messageLinks = Array.from(picked);
         }
 
-        messageLinks.forEach((messageLink) => {
+        // ⚡ Bolt: Use a standard for loop instead of higher-order array methods
+        // in hot loops to eliminate anonymous function allocation overhead.
+        for (let idx = 0; idx < messageLinks.length; idx++) {
+            const messageLink = messageLinks[idx];
             const card = getCardDataFromLink(messageLink);
             if (!card) {
-                return;
+                continue;
             }
 
             const fullName = String(card.lines[0] || '').replace(/\s+/g, ' ').trim();
             if (!fullName) {
-                return;
+                continue;
             }
 
-            const detailLines = card.lines
-                .slice(1)
-                .filter((line) => !/^connected on /i.test(line) && !/^message$/i.test(line));
-            const connectedOnRaw = card.lines.find((line) => /^connected on /i.test(line)) || '';
+            const detailLines = [];
+            let connectedOnRaw = '';
+            for (let i = 1; i < card.lines.length; i++) {
+                const line = card.lines[i];
+                if (CONNECTED_ON_REGEX.test(line)) {
+                    connectedOnRaw = line;
+                } else if (!MESSAGE_REGEX.test(line)) {
+                    detailLines.push(line);
+                }
+            }
+
             const headline = detailLines[0] || '';
             const additionalDetails = detailLines.slice(1).join(' | ');
             const profileUrl = card.profileUrl.startsWith('http') ? card.profileUrl : `${linkedinBaseUrl}${card.profileUrl}`;
@@ -172,7 +208,7 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
             const dedupeKey = profileUrl || messageUrl || fullName;
 
             if (seenKeys.has(dedupeKey)) {
-                return;
+                continue;
             }
 
             seenKeys.add(dedupeKey);
@@ -185,7 +221,7 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
                 profileUrl,
                 messageUrl
             });
-        });
+        }
 
         return connections;
     }, {
