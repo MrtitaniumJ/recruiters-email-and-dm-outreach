@@ -199,8 +199,13 @@ async function scrollOnce(page) {
     await page.evaluate(() => {
         const scrollableElements = Array.from(document.querySelectorAll('*'))
             .filter((element) => {
+                // ⚡ Bolt: Fast geometric check first to avoid expensive getComputedStyle calls
+                // on non-scrollable elements during this hot DOM traversal loop.
+                if (element.scrollHeight <= element.clientHeight + 80) {
+                    return false;
+                }
                 const style = window.getComputedStyle(element);
-                return /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 80;
+                return /(auto|scroll)/.test(style.overflowY);
             })
             .sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
 
