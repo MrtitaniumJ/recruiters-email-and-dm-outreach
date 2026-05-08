@@ -5,3 +5,7 @@
 ## 2024-05-24 - Avoiding Higher-Order Array Methods in Hot Loops
 **Learning:** Using array iteration methods like `some` and `reduce` in a hot path (such as executing an array of regexes against many strings in `outreachClassifier.js`) incurs significant overhead compared to simple `for` loops, due to anonymous function allocations and callback invocation costs.
 **Action:** When working on classification or processing loops that iterate over thousands of objects per run, replace `some`, `reduce`, or `map` with standard `for` loops to minimize CPU cycles and memory allocations.
+
+## 2024-05-25 - Expensive DOM Methods in Filtering Loops
+**Learning:** Calling expensive CSS recalculation methods like `window.getComputedStyle(element)` inside a `.filter` block that iterates over thousands of DOM nodes (e.g., `querySelectorAll('*')` for finding scrollable elements) creates a massive performance bottleneck. Resolving the styles triggers repeated processing overhead when simple geometric properties can eliminate the majority of nodes faster.
+**Action:** Always perform fast geometric checks (like `element.scrollHeight > element.clientHeight`) *before* invoking expensive DOM API methods (`getComputedStyle`) in large filter chains or loops to quickly eliminate irrelevant nodes and avoid unnecessary style calculations.
