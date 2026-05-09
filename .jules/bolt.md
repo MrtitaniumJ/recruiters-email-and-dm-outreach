@@ -5,3 +5,7 @@
 ## 2024-05-24 - Avoiding Higher-Order Array Methods in Hot Loops
 **Learning:** Using array iteration methods like `some` and `reduce` in a hot path (such as executing an array of regexes against many strings in `outreachClassifier.js`) incurs significant overhead compared to simple `for` loops, due to anonymous function allocations and callback invocation costs.
 **Action:** When working on classification or processing loops that iterate over thousands of objects per run, replace `some`, `reduce`, or `map` with standard `for` loops to minimize CPU cycles and memory allocations.
+
+## 2025-10-27 - Fast Geometric Checks before Expensive Style Computations
+**Learning:** Checking layout properties (like `scrollHeight` and `clientHeight`) before running expensive functions like `window.getComputedStyle(element)` on every node during DOM traversal (`querySelectorAll('*')`) significantly reduces reflow and calculation overhead.
+**Action:** Always verify if an element physically needs to be processed (e.g., checking if it visually overflows) via fast geometric checks *before* querying expensive computed styles.

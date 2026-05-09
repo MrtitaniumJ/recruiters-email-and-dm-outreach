@@ -248,12 +248,23 @@ async function collectConnections(page, maxScrollSteps, maxConnectionsToSync) {
         }
 
         await page.evaluate(() => {
-            const scrollableElements = Array.from(document.querySelectorAll('*'))
-                .filter((element) => {
+            // Bolt Optimization: Defer expensive getComputedStyle check by checking geometry first,
+            // and eliminate allocation overhead using a standard for loop.
+            const allElements = document.querySelectorAll('*');
+            const scrollableElements = [];
+
+            for (let i = 0; i < allElements.length; i++) {
+                const element = allElements[i];
+                // Fast geometric property check before expensive window.getComputedStyle call
+                if (element.scrollHeight > element.clientHeight + 80) {
                     const style = window.getComputedStyle(element);
-                    return /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 80;
-                })
-                .sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
+                    if (/(auto|scroll)/.test(style.overflowY)) {
+                        scrollableElements.push(element);
+                    }
+                }
+            }
+
+            scrollableElements.sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
 
             const target = scrollableElements[0] || document.scrollingElement || document.documentElement || document.body;
             target.scrollBy(0, Math.max(window.innerHeight, 900));
