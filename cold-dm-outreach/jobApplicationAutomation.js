@@ -325,6 +325,62 @@ async function discoverJobsForCompany(page, companyConfig, config) {
     await sleep(1200);
 
     return page.evaluate((companyName, hintFragments) => {
+        // ⚡ Bolt: Hoisted static arrays to avoid recreating them inside hot loops
+        const ROLE_PATTERNS = [
+            /\bengineer\b/,
+            /\bdeveloper\b/,
+            /\bsde\b/,
+            /full stack/,
+            /full-stack/,
+            /frontend/,
+            /backend/,
+            /\bsoftware\b/,
+            /\bweb\b/,
+            /\bapplication\b/,
+            /\btechnology\b/,
+            /\bqa\b/,
+            /\bdevops\b/,
+            /\bdata\b/
+        ];
+
+        const GENERIC_TITLE_PATTERNS = [
+            /^search$/,
+            /^explore$/,
+            /^find jobs$/,
+            /^job search$/,
+            /^experienced professionals$/,
+            /^students? and entry/,
+            /^student and entry level/,
+            /^talent community$/,
+            /^people stories/,
+            /^what we look for/,
+            /^what you can do here$/,
+            /^how we hire/,
+            /^interview tips/,
+            /^cookie preferences$/,
+            /^skip to content$/,
+            /^careers$/,
+            /^explore open roles$/,
+            /^job openings$/,
+            /^open roles$/,
+            /^see all results/,
+            /^india english$/
+        ];
+
+        const GENERIC_URL_FRAGMENTS = [
+            '#',
+            '/lp/',
+            'job_boards',
+            'how-we-hire',
+            'what-we-look-for',
+            'interview-tips',
+            'people-stories',
+            'diversity',
+            'mobility',
+            'talent-community',
+            'talentcommunity'
+        ];
+
         function normalizeTextLocal(value) {
             return String(value || '').replace(/\s+/g, ' ').trim();
         }
@@ -358,85 +414,72 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                 .map((segment) => segment.trim())
                 .filter(Boolean);
 
-            return segments.find((segment) => /remote|hybrid|india|bangalore|bengaluru|gurgaon|noida|pune|hyderabad|mumbai|delhi/i.test(segment)) || '';
+            for (let i = 0; i < segments.length; i++) {
+                if (/remote|hybrid|india|bangalore|bengaluru|gurgaon|noida|pune|hyderabad|mumbai|delhi/i.test(segments[i])) {
+                    return segments[i];
+                }
+            }
+            return '';
         }
 
         function detectEmploymentType(text) {
-            const normalized = normalizeTextLocal(text);
+            const normalized = normalizeTextLocal(text).toLowerCase();
             const patterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
-            return patterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
+            for (let i = 0; i < patterns.length; i++) {
+                if (normalized.includes(patterns[i])) {
+                    return patterns[i];
+                }
+            }
+            return '';
         }
 
+        // ⚡ Bolt: Used standard loops instead of .some() for better performance
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
-            const rolePatterns = [
-                /\bengineer\b/,
-                /\bdeveloper\b/,
-                /\bsde\b/,
-                /full stack/,
-                /full-stack/,
-                /frontend/,
-                /backend/,
-                /\bsoftware\b/,
-                /\bweb\b/,
-                /\bapplication\b/,
-                /\btechnology\b/,
-                /\bqa\b/,
-                /\bdevops\b/,
-                /\bdata\b/
-            ];
 
-            if (rolePatterns.some((pattern) => pattern.test(normalizedTitle))) {
+            let titleMatch = false;
+            for (let i = 0; i < ROLE_PATTERNS.length; i++) {
+                if (ROLE_PATTERNS[i].test(normalizedTitle)) {
+                    titleMatch = true;
+                    break;
+                }
+            }
+
+            if (titleMatch) {
                 return true;
             }
 
-            return normalizedTitle.split(' ').length >= 2 &&
-                rolePatterns.some((pattern) => pattern.test(normalizedContext));
+            if (normalizedTitle.split(' ').length < 2) {
+                return false;
+            }
+
+            for (let i = 0; i < ROLE_PATTERNS.length; i++) {
+                if (ROLE_PATTERNS[i].test(normalizedContext)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
+        // ⚡ Bolt: Used standard loops instead of .some() for better performance
         function isGenericCareerNavigation(title, url) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
             const normalizedUrl = String(url || '').toLowerCase();
-            const genericTitlePatterns = [
-                /^search$/,
-                /^explore$/,
-                /^find jobs$/,
-                /^job search$/,
-                /^experienced professionals$/,
-                /^students? and entry/,
-                /^student and entry level/,
-                /^talent community$/,
-                /^people stories/,
-                /^what we look for/,
-                /^what you can do here$/,
-                /^how we hire/,
-                /^interview tips/,
-                /^cookie preferences$/,
-                /^skip to content$/,
-                /^careers$/,
-                /^explore open roles$/,
-                /^job openings$/,
-                /^open roles$/,
-                /^see all results/,
-                /^india english$/
-            ];
-            const genericUrlFragments = [
-                '#',
-                '/lp/',
-                'job_boards',
-                'how-we-hire',
-                'what-we-look-for',
-                'interview-tips',
-                'people-stories',
-                'diversity',
-                'mobility',
-                'talent-community',
-                'talentcommunity'
-            ];
 
-            return genericTitlePatterns.some((pattern) => pattern.test(normalizedTitle)) ||
-                genericUrlFragments.some((fragment) => normalizedUrl.includes(fragment));
+            for (let i = 0; i < GENERIC_TITLE_PATTERNS.length; i++) {
+                if (GENERIC_TITLE_PATTERNS[i].test(normalizedTitle)) {
+                    return true;
+                }
+            }
+
+            for (let i = 0; i < GENERIC_URL_FRAGMENTS.length; i++) {
+                if (normalizedUrl.includes(GENERIC_URL_FRAGMENTS[i])) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function pushJob(jobs, seenKeys, job) {
@@ -452,14 +495,18 @@ async function discoverJobsForCompany(page, companyConfig, config) {
         const jobs = [];
         const seenKeys = new Set();
 
-        document.querySelectorAll('script[type="application/ld+json"]').forEach((script) => {
+        // ⚡ Bolt: Replaced .forEach() with standard loops for hot DOM traversal
+        const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (let i = 0; i < scripts.length; i++) {
             try {
-                const parsed = JSON.parse(script.textContent || 'null');
+                const parsed = JSON.parse(scripts[i].textContent || 'null');
                 const payloads = Array.isArray(parsed) ? parsed : [parsed];
 
-                for (const payload of payloads) {
+                for (let j = 0; j < payloads.length; j++) {
+                    const payload = payloads[j];
                     const candidates = payload?.['@graph'] ? payload['@graph'] : [payload];
-                    for (const item of candidates) {
+                    for (let k = 0; k < candidates.length; k++) {
+                        const item = candidates[k];
                         if (item?.['@type'] !== 'JobPosting') {
                             continue;
                         }
@@ -492,36 +539,46 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                     }
                 }
             } catch (error) {
-                return;
+                continue;
             }
-        });
+        }
 
-        document.querySelectorAll('a[href]').forEach((anchor) => {
+        // ⚡ Bolt: Replaced .forEach() with standard loops for hot DOM traversal
+        const anchors = document.querySelectorAll('a[href]');
+        for (let i = 0; i < anchors.length; i++) {
+            const anchor = anchors[i];
             const href = absoluteUrl(anchor.href);
             const anchorText = normalizeTextLocal(anchor.innerText || anchor.textContent || '');
             const contextText = getContextText(anchor);
             const title = anchorText || normalizeTextLocal((contextText || '').split('\n')[0]);
             const haystack = `${href} ${anchorText} ${contextText}`.toLowerCase();
-            const looksLikeJobLink = hintFragments.some((fragment) => haystack.includes(String(fragment).toLowerCase()));
+
+            let looksLikeJobLink = false;
+            for (let j = 0; j < hintFragments.length; j++) {
+                if (haystack.includes(String(hintFragments[j]).toLowerCase())) {
+                    looksLikeJobLink = true;
+                    break;
+                }
+            }
 
             if (!looksLikeJobLink) {
-                return;
+                continue;
             }
 
             if (title.length < 4) {
-                return;
+                continue;
             }
 
             if (/learn more|read more|view all|careers|our team|privacy|terms|benefits/i.test(title)) {
-                return;
+                continue;
             }
 
             if (!looksLikeRoleTitle(title, contextText)) {
-                return;
+                continue;
             }
 
              if (isGenericCareerNavigation(title, href)) {
-                return;
+                continue;
             }
 
             pushJob(jobs, seenKeys, {
@@ -535,7 +592,7 @@ async function discoverJobsForCompany(page, companyConfig, config) {
                 employmentType: detectEmploymentType(contextText),
                 summary: normalizeTextLocal(contextText).slice(0, 900)
             });
-        });
+        }
 
         return jobs.slice(0, 100);
     }, companyConfig.company, ROLE_LINK_HINTS);
