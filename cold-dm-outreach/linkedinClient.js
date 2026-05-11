@@ -197,12 +197,23 @@ async function extractVisibleConnections(page, { maxComposeAnchors = 0, tailWind
 
 async function scrollOnce(page) {
     await page.evaluate(() => {
-        const scrollableElements = Array.from(document.querySelectorAll('*'))
-            .filter((element) => {
+        // ⚡ Bolt: Fast geometric property checks first to avoid expensive getComputedStyle reflows
+        // Also replaces higher order array methods with a standard for loop for performance.
+        const scrollableElements = [];
+        const allElements = document.querySelectorAll('*');
+        const scrollRegex = /(auto|scroll)/;
+        for (let i = 0; i < allElements.length; i++) {
+            const element = allElements[i];
+            // Fast geometric check
+            if (element.scrollHeight > element.clientHeight + 80) {
+                // Expensive check only if geometric check passes
                 const style = window.getComputedStyle(element);
-                return /(auto|scroll)/.test(style.overflowY) && element.scrollHeight > element.clientHeight + 80;
-            })
-            .sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
+                if (scrollRegex.test(style.overflowY)) {
+                    scrollableElements.push(element);
+                }
+            }
+        }
+        scrollableElements.sort((left, right) => (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
 
         const target = scrollableElements[0] || document.scrollingElement || document.documentElement || document.body;
         target.scrollBy(0, Math.max(window.innerHeight, 900));
