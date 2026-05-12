@@ -6,12 +6,6 @@
 **Learning:** Using array iteration methods like `some` and `reduce` in a hot path (such as executing an array of regexes against many strings in `outreachClassifier.js`) incurs significant overhead compared to simple `for` loops, due to anonymous function allocations and callback invocation costs.
 **Action:** When working on classification or processing loops that iterate over thousands of objects per run, replace `some`, `reduce`, or `map` with standard `for` loops to minimize CPU cycles and memory allocations.
 
-<<<<<<< bolt-hoist-regex-puppeteer-11697783667278062050
-## 2024-04-18 - Hoisting Regex in Puppeteer Evaluated Functions
-**Learning:** In hot loops within `page.evaluate` blocks (like DOM traversal scripts fetching connection cards), creating literal inline regexes (e.g., `/^message$/i.test()`) forces repeated regex compilation and garbage allocation overhead within the headless browser context, creating a specific bottleneck.
-**Action:** Always hoist static regex definitions (and static configuration arrays) to the outermost scope of the `page.evaluate` block before running the DOM traversal loops to reduce memory allocation inside the browser.
-=======
 ## 2024-05-25 - Puppeteer page.evaluate Array Allocations
 **Learning:** Allocating large arrays or compiling regexes inside helper functions defined within a Puppeteer `page.evaluate` block can cause severe performance degradation when those helpers are invoked in a hot loop (like traversing every DOM node). This forces the browser's JavaScript engine to repeatedly allocate memory and trigger garbage collection on the main thread.
 **Action:** Always hoist static arrays, configurations, and regex compilations to the outermost scope of the `page.evaluate` block so they are initialized only once per page context.
->>>>>>> main

@@ -409,23 +409,42 @@ async function discoverJobsForCompany(page, companyConfig, config) {
             return bestText;
         }
 
+        // ⚡ Bolt: Replaced higher-order functions (.map, .filter, .find) with standard for-loops
+        // in these hot-loop helpers to avoid function allocation overhead.
         function detectLocation(text) {
-            const segments = normalizeTextLocal(text)
-                .split('|')
-                .map((segment) => segment.trim())
-                .filter(Boolean);
-
-            return segments.find((segment) => /remote|hybrid|india|bangalore|bengaluru|gurgaon|noida|pune|hyderabad|mumbai|delhi/i.test(segment)) || '';
+            const rawSegments = normalizeTextLocal(text).split('|');
+            for (let i = 0; i < rawSegments.length; i++) {
+                const segment = rawSegments[i].trim();
+                if (segment && LOCATION_REGEX.test(segment)) {
+                    return segment;
+                }
+            }
+            return '';
         }
 
         function detectEmploymentType(text) {
-            const normalized = normalizeTextLocal(text);
-            const patterns = ['full time', 'full-time', 'contract', 'internship', 'part time', 'part-time'];
-            return patterns.find((pattern) => normalized.toLowerCase().includes(pattern)) || '';
+            const normalized = normalizeTextLocal(text).toLowerCase();
+            for (let i = 0; i < EMPLOYMENT_PATTERNS.length; i++) {
+                if (normalized.includes(EMPLOYMENT_PATTERNS[i])) {
+                    return EMPLOYMENT_PATTERNS[i];
+                }
+            }
+            return '';
         }
 
         function looksLikeRoleTitle(title, contextText) {
             const normalizedTitle = normalizeTextLocal(title).toLowerCase();
+
+            for (let i = 0; i < ROLE_PATTERNS.length; i++) {
+                if (ROLE_PATTERNS[i].test(normalizedTitle)) {
+                    return true;
+                }
+            }
+
+            if (normalizedTitle.split(' ').length < 2) {
+                return false;
+            }
+
             const normalizedContext = normalizeTextLocal(contextText).toLowerCase();
 
             // ⚡ Bolt: Replaced .some() with for loops to avoid anonymous function allocation overhead.
