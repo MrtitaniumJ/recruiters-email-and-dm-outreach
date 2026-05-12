@@ -799,7 +799,7 @@ async function prepareApplicationForm(page, job, config) {
     await sleep(3000);
 
     if (job.ats === 'greenhouse' || job.ats === 'lever' || job.ats === 'smartrecruiters') {
-        await clickApplyEntryPoint(page).catch(() => {});
+        await clickApplyEntryPoint(page).catch(err => console.warn('   ⚠️ UI interaction warning (apply entry):', err.message));
     }
 
     if (job.ats === 'smartrecruiters') {
@@ -1463,7 +1463,7 @@ async function main() {
             applicationResults.push({ job, result });
 
             if (tracker.enabled) {
-                await tracker.updateApplicationResult(job, result, runDateIso).catch(() => {});
+                await tracker.updateApplicationResult(job, result, runDateIso).catch(err => console.error('   ❌ Tracking error:', err.message));
             }
 
             if (result.status === 'Applied') {

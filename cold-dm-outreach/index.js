@@ -760,10 +760,10 @@ async function main() {
                             status: 'Failed',
                             note: `Failed on ${new Date().toISOString().split('T')[0]}: ${truncate(error.message, 400)}`,
                             failed: true
-                        }).catch(() => {});
+                        }).catch(err => console.error('   ❌ Tracking error:', err.message));
                     }
 
-                    await returnToConnections(page, config.navigationTimeoutMs).catch(() => {});
+                    await returnToConnections(page, config.navigationTimeoutMs).catch(err => console.warn('   ⚠️ Navigation warning:', err.message));
                 }
             }
 
