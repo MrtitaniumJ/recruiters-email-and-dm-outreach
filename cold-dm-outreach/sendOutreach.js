@@ -245,7 +245,7 @@ async function main() {
 
                 if (!result.sent && result.reason === 'reply_detected') {
                     console.log('   💬 Reply detected in thread — marking as Replied, no message sent.');
-                    await tracker.markReplied(entry, `Reply detected on ${new Date().toISOString().split('T')[0]}`).catch(() => {});
+                    await tracker.markReplied(entry, `Reply detected on ${new Date().toISOString().split('T')[0]}`).catch(e => console.error(`      ⚠️ Failed to mark as replied in tracker: ${e.message}`));
                     runLog.replies.push({ name: entry.name });
                 } else {
                     console.log('   ✅ Message sent');
@@ -275,7 +275,7 @@ async function main() {
                     stage: entry.stage,
                     failed: true,
                     note: `Failed on ${new Date().toISOString().split('T')[0]}: ${String(error.message).slice(0, 200)}`
-                }).catch(() => {});
+                }).catch(e => console.error(`      ⚠️ Failed to record outreach result in tracker: ${e.message}`));
             }
 
             if (index < queue.length - 1) {

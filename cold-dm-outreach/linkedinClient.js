@@ -351,7 +351,7 @@ async function collectAllConnections(page, {
 
         if (newCount === 0) {
             stagnant += 1;
-            await clickShowMoreButton(page).catch(() => {});
+            await clickShowMoreButton(page).catch(e => console.log(`      (Note: Show more button not clicked: ${e.message})`));
             if (stagnant >= stagnationLimit) {
                 await flushNow('global_stagnation');
                 stopReason = 'global_stagnation';

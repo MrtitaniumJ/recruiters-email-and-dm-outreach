@@ -760,10 +760,10 @@ async function main() {
                             status: 'Failed',
                             note: `Failed on ${new Date().toISOString().split('T')[0]}: ${truncate(error.message, 400)}`,
                             failed: true
-                        }).catch(() => {});
+                        }).catch(e => console.error(`   ⚠️ Failed to update Notion tracker: ${e.message}`));
                     }
 
-                    await returnToConnections(page, config.navigationTimeoutMs).catch(() => {});
+                    await returnToConnections(page, config.navigationTimeoutMs).catch(e => console.error(`   ⚠️ Failed to return to connections: ${e.message}`));
                 }
             }
 
