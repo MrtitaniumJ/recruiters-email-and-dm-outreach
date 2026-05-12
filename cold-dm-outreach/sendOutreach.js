@@ -305,8 +305,21 @@ async function main() {
     }
 }
 
-main().catch((error) => {
-    console.error('❌ Fatal error in sendOutreach:', error.message);
-    console.error(error.stack);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch((error) => {
+        console.error('❌ Fatal error in sendOutreach:', error.message);
+        console.error(error.stack);
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    isEligibleForInitial,
+    isEligibleForFollowUp,
+    buildQueue,
+    sortByPriority,
+    daysSince,
+    nextStageFor,
+    candidateFromRecord,
+    buildConfig
+};
