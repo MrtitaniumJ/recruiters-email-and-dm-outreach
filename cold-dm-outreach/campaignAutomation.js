@@ -403,7 +403,7 @@ function writeDigestFiles(digest, config) {
     return { markdown, markdownPath: DIGEST_MARKDOWN_PATH, jsonPath: DIGEST_JSON_PATH };
 }
 
-module.exports = {
+module.exports = { readJsonFile,
     CAMPAIGN_CONFIG_PATH,
     DIGEST_MARKDOWN_PATH,
     DIGEST_JSON_PATH,
