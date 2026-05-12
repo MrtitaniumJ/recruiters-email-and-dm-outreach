@@ -227,22 +227,24 @@ async function clickShowMoreButton(page) {
     });
 }
 
-async function collectAllConnections(page, {
-    targetTotal = null,
-    maxScrollSteps = 800,
-    stagnationLimit = 12,
-    scrollDelayMs = 1400,
-    onProgress = null,
-    mode = 'full',
-    existingNotionKeys = null,
-    latestHeadSteps = 0,
-    scrollsPerExtract = 1,
-    maxComposeAnchors = 0,
-    extractTailWindow = 0,
-    targetNewToNotion = 0,
-    flushBatchSize = 0,
-    onBatchFlush = null
-} = {}) {
+async function collectAllConnections(page, options = {}) {
+    const {
+        targetTotal = null,
+        maxScrollSteps = 800,
+        stagnationLimit = 12,
+        scrollDelayMs = 1400,
+        onProgress = null,
+        mode = 'full',
+        existingNotionKeys = null,
+        latestHeadSteps = 0,
+        scrollsPerExtract = 1,
+        maxComposeAnchors = 0,
+        extractTailWindow = 0,
+        targetNewToNotion = 0,
+        flushBatchSize = 0,
+        onBatchFlush = null
+    } = options;
+
     const byKey = new Map();
     let stagnant = 0;
     let unknownStagnant = 0;
