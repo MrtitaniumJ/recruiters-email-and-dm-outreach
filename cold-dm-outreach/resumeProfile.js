@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
+const cp = require('child_process');
 
 const RESUME_SEED_PROFILE_PATH = path.join(__dirname, 'resumeProfile.seed.json');
 
@@ -93,7 +93,7 @@ function extractResumeText(resumePath) {
 
     for (const [command, args] of commandAttempts) {
         try {
-            const output = execFileSync(command, args, {
+            const output = cp.execFileSync(command, args, {
                 encoding: 'utf8',
                 stdio: ['ignore', 'pipe', 'pipe']
             });
@@ -176,5 +176,6 @@ function buildResumeProfile({ resumePath, fallbackLocations = [] }) {
 module.exports = {
     buildResumeProfile,
     mergeUniqueValues,
-    normalizeText
+    normalizeText,
+    extractResumeText
 };
