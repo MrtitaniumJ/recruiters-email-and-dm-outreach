@@ -1,6 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const puppeteer = require('puppeteer');
+let puppeteer;
+try {
+    puppeteer = require('puppeteer');
+} catch (e) {}
+
 
 const {
     loadCampaignConfig,
@@ -12,8 +16,8 @@ const {
 } = require('./campaignAutomation');
 const { createNotionTracker } = require('./notionTracker');
 
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), override: false });
+try { require('dotenv').config({ path: path.join(__dirname, '.env') }); } catch(e) {}
+try { require('dotenv').config({ path: path.resolve(__dirname, '..', '.env'), override: false }); } catch(e) {}
 
 const LINKEDIN_BASE_URL = 'https://www.linkedin.com';
 const CONNECTIONS_URL = `${LINKEDIN_BASE_URL}/mynetwork/invite-connect/connections/`;
@@ -818,8 +822,12 @@ async function main() {
     }
 }
 
-main().catch((error) => {
-    console.error('❌ Fatal error:', error.message);
-    console.error(error.stack);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch((error) => {
+        console.error('❌ Fatal error:', error.message);
+        console.error(error.stack);
+        process.exit(1);
+    });
+}
+
+module.exports = { readJsonFile };
