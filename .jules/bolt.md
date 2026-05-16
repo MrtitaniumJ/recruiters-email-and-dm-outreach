@@ -9,3 +9,7 @@
 ## 2024-05-25 - Puppeteer page.evaluate Array Allocations
 **Learning:** Allocating large arrays or compiling regexes inside helper functions defined within a Puppeteer `page.evaluate` block can cause severe performance degradation when those helpers are invoked in a hot loop (like traversing every DOM node). This forces the browser's JavaScript engine to repeatedly allocate memory and trigger garbage collection on the main thread.
 **Action:** Always hoist static arrays, configurations, and regex compilations to the outermost scope of the `page.evaluate` block so they are initialized only once per page context.
+
+## 2024-05-26 - Sequential I/O Bottlenecks in Automation Loops
+**Learning:** Using `for...of` loops to iterate over a map of companies and making asynchronous requests (`await fetchWithTimeout`) causes requests to be processed sequentially, creating a significant latency bottleneck proportional to the number of items.
+**Action:** Replace sequential asynchronous operations over independent data structures with concurrent requests using `Promise.all(Array.from(map.entries()).map(...))` to dramatically minimize total execution time in I/O-bound tasks.
