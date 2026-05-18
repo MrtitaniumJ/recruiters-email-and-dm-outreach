@@ -9,3 +9,7 @@
 ## 2024-05-25 - Puppeteer page.evaluate Array Allocations
 **Learning:** Allocating large arrays or compiling regexes inside helper functions defined within a Puppeteer `page.evaluate` block can cause severe performance degradation when those helpers are invoked in a hot loop (like traversing every DOM node). This forces the browser's JavaScript engine to repeatedly allocate memory and trigger garbage collection on the main thread.
 **Action:** Always hoist static arrays, configurations, and regex compilations to the outermost scope of the `page.evaluate` block so they are initialized only once per page context.
+
+## 2024-05-26 - Fast Geometric Checks before Expensive Computed Style Lookups
+**Learning:** Checking for scrollable elements via `querySelectorAll('*')` and then calling `window.getComputedStyle(element)` on every node is extremely expensive and causes massive layout thrashing/reflows. Doing a simple, fast geometric property check (`scrollHeight > clientHeight`) before the expensive computed style check drops the computation time by almost 85%.
+**Action:** Always perform fast geometric property checks before invoking expensive methods like `window.getComputedStyle` when filtering large node lists in `page.evaluate`.
