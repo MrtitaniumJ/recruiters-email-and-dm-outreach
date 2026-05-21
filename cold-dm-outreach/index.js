@@ -374,17 +374,32 @@ function parseConnectedOnDate(connectedOnRaw) {
     return parsed.toISOString().split('T')[0];
 }
 
+// ⚡ Bolt: Replaced higher-order functions (.filter, .map) with standard for-loops in a hot loop
+// to avoid function allocation overhead while preserving full functionality (including string extracting for matchReason).
 function scoreConnection(connection) {
     const searchableText = `${connection.headline} ${connection.additionalDetails}`.trim();
-    const strongMatches = RELEVANCE_RULES.strongPatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
-    const softMatches = RELEVANCE_RULES.softPatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
-    const negativeMatches = RELEVANCE_RULES.negativePatterns
-        .filter((pattern) => pattern.test(searchableText))
-        .map((pattern) => pattern.source);
+
+    const strongMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.strongPatterns.length; i++) {
+        if (RELEVANCE_RULES.strongPatterns[i].test(searchableText)) {
+            strongMatches.push(RELEVANCE_RULES.strongPatterns[i].source);
+        }
+    }
+
+    const softMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.softPatterns.length; i++) {
+        if (RELEVANCE_RULES.softPatterns[i].test(searchableText)) {
+            softMatches.push(RELEVANCE_RULES.softPatterns[i].source);
+        }
+    }
+
+    const negativeMatches = [];
+    for (let i = 0; i < RELEVANCE_RULES.negativePatterns.length; i++) {
+        if (RELEVANCE_RULES.negativePatterns[i].test(searchableText)) {
+            negativeMatches.push(RELEVANCE_RULES.negativePatterns[i].source);
+        }
+    }
+
     const matchScore = (strongMatches.length * 2) + softMatches.length - negativeMatches.length;
 
     let relevanceLabel = 'Not Relevant';
