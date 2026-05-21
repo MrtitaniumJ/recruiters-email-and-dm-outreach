@@ -9,3 +9,7 @@
 ## 2024-05-25 - Puppeteer page.evaluate Array Allocations
 **Learning:** Allocating large arrays or compiling regexes inside helper functions defined within a Puppeteer `page.evaluate` block can cause severe performance degradation when those helpers are invoked in a hot loop (like traversing every DOM node). This forces the browser's JavaScript engine to repeatedly allocate memory and trigger garbage collection on the main thread.
 **Action:** Always hoist static arrays, configurations, and regex compilations to the outermost scope of the `page.evaluate` block so they are initialized only once per page context.
+
+## 2024-05-27 - Higher-Order Array Methods in Relevance Scoring
+**Learning:** In hot functions like `scoreConnection` which iterates over hundreds or thousands of profiles, chained array operations (`.filter().map()`) create intermediate array allocations that slow down execution. However, blindly replacing them with counting loops will break functionality if the mapped values (like `.source` strings) are used later in the function (e.g., for `matchReason` output).
+**Action:** When replacing chained array methods with loops to avoid allocation overhead, always ensure that both counting requirements and array extraction requirements are fulfilled within the optimized loop to maintain full functionality.
